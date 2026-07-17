@@ -524,43 +524,62 @@ function drawAngleView(ctx) {
 
 /** 溜めフェーズ：指を上から見る */
 function drawChargeView(ctx) {
-  const cx = W / 2, cy = 820;
+  const cx = W / 2, cy = 690;   // 手のひらがゲージ(y=1090)に乗らない高さ
   const bend = gauge * 46 + Math.min(over, 3) * 5;
   const quiv = charging ? (Math.random() - .5) * (gauge * 10 + Math.min(over, 3) * 8) : 0;
 
   ctx.save();
   ctx.translate(cx + quiv, cy + quiv * .5);
 
-  // 手のひら
-  ctx.fillStyle = '#dc9a76';
+  // 手の甲（上から見ている）
+  const pg = ctx.createRadialGradient(-30, 150, 20, 0, 200, 190);
+  pg.addColorStop(0, '#eeb489'); pg.addColorStop(1, '#c2805c');
+  ctx.fillStyle = pg;
   ctx.beginPath();
-  ctx.ellipse(0, 200, 150, 130, 0, 0, TAU); ctx.fill();
-  ctx.strokeStyle = '#b8724f'; ctx.lineWidth = 3; ctx.stroke();
-
-  // 親指（人差し指を押さえている）
-  ctx.save();
-  ctx.rotate(.5);
-  ctx.fillStyle = '#e8a882';
-  ctx.beginPath();
-  ctx.roundRect(-40, 40, 190, 74, 38); ctx.fill();
-  ctx.strokeStyle = '#c2795a'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.restore();
+  ctx.ellipse(0, 210, 158, 136, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#a86547'; ctx.lineWidth = 3; ctx.stroke();
+  // 他の指の付け根
+  ctx.strokeStyle = 'rgba(150,80,60,.3)'; ctx.lineWidth = 3;
+  for (const xx of [-78, -26, 26, 78]) {
+    ctx.beginPath(); ctx.moveTo(xx, 120); ctx.lineTo(xx, 200); ctx.stroke();
+  }
 
   // 人差し指（溜めるほど後ろに反る）
   ctx.save();
   ctx.rotate(bend * Math.PI / 180);
-  const g = ctx.createLinearGradient(-46, 0, 46, 0);
-  g.addColorStop(0, '#c2795a'); g.addColorStop(.45, '#f6c9a8'); g.addColorStop(1, '#e8a882');
+  const g = ctx.createLinearGradient(-56, 0, 56, 0);
+  g.addColorStop(0, '#b8724f'); g.addColorStop(.42, '#f9d0b0'); g.addColorStop(1, '#dc9a76');
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.roundRect(-46, -280, 92, 340, 46); ctx.fill();
-  ctx.strokeStyle = '#c2795a'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.roundRect(-56, -252, 112, 320, 56); ctx.fill();
+  ctx.strokeStyle = '#a86547'; ctx.lineWidth = 3; ctx.stroke();
+  // 関節。これが無いと指に見えない
+  ctx.strokeStyle = 'rgba(150,80,60,.34)'; ctx.lineWidth = 2.5;
+  for (const yy of [-116, -100, 4, 20]) {
+    ctx.beginPath(); ctx.moveTo(-40, yy); ctx.quadraticCurveTo(0, yy + 12, 40, yy); ctx.stroke();
+  }
   // 爪
-  ctx.beginPath(); ctx.ellipse(0, -248, 24, 32, 0, 0, TAU);
-  ctx.fillStyle = '#ffeee4'; ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, -214, 30, 40, 0, 0, TAU);
+  const ng = ctx.createLinearGradient(0, -250, 0, -176);
+  ng.addColorStop(0, '#fff6f0'); ng.addColorStop(1, '#e8b49a');
+  ctx.fillStyle = ng; ctx.fill();
+  ctx.strokeStyle = '#b8724f'; ctx.lineWidth = 2; ctx.stroke();
   // 鼻くそ
-  drawBooger(ctx, sel, 0, -300, sizePx(sel.size), anim);
+  drawBooger(ctx, sel, 0, -286, sizePx(sel.size), anim);
   ctx.restore();
+
+  // 親指（人差し指の上に被せて押さえている。指より後に描く）
+  ctx.save();
+  ctx.rotate(-.34);
+  const tg = ctx.createLinearGradient(0, 30, 0, 130);
+  tg.addColorStop(0, '#f6c9a8'); tg.addColorStop(1, '#c98058');
+  ctx.fillStyle = tg;
+  ctx.beginPath(); ctx.roundRect(-186, 26, 240, 84, 42); ctx.fill();
+  ctx.strokeStyle = '#a86547'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-160, 68, 26, 32, 0, 0, TAU);
+  ctx.fillStyle = '#ffeee4'; ctx.fill(); ctx.stroke();
+  ctx.restore();
+
   ctx.restore();
 
   // ゲージ
@@ -600,6 +619,9 @@ function drawChargeView(ctx) {
   ctx.font = '900 30px system-ui, sans-serif';
   ctx.fillStyle = '#ffd97a';
   ctx.fillText(`${lockedAngle.toFixed(0)}°`, W / 2, 150);
+  ctx.font = '700 24px system-ui, sans-serif';
+  ctx.fillStyle = '#8a7a72';
+  ctx.fillText(`${sel.name}（${sel.size}）`, W / 2, 330);
   ctx.restore();
 }
 
