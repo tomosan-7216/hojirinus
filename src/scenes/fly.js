@@ -555,7 +555,7 @@ function drawAngleView(ctx) {
   ctx.save();
   ctx.translate(px, py);
 
-  ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(30,110,140,.28)'; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI / 2, 0); ctx.stroke();
 
   // 40〜45°のおいしい帯。細いと見えないので太く敷く
@@ -565,7 +565,7 @@ function drawAngleView(ctx) {
 
   for (let d = 0; d <= 90; d += 15) {
     ctx.save(); ctx.rotate(-d * Math.PI / 180);
-    ctx.strokeStyle = d === 45 ? '#ffd97a' : 'rgba(255,255,255,.3)';
+    ctx.strokeStyle = d === 45 ? '#ffb31f' : 'rgba(30,110,140,.45)';
     ctx.lineWidth = d === 45 ? 4 : 2;
     ctx.beginPath(); ctx.moveTo(R + 16, 0); ctx.lineTo(R + (d % 45 === 0 ? 42 : 26), 0); ctx.stroke();
     ctx.restore();
@@ -574,7 +574,7 @@ function drawAngleView(ctx) {
   ctx.save();
   ctx.rotate(-Math.PI / 4); ctx.translate(R + 76, 0); ctx.rotate(Math.PI / 4);
   ctx.textAlign = 'center'; ctx.font = '900 24px system-ui, sans-serif';
-  ctx.fillStyle = '#ffd97a'; ctx.fillText('45°', 0, 9);
+  ctx.fillStyle = '#b06a00'; ctx.fillText('45°', 0, 9);
   ctx.restore();
 
   // 指
@@ -600,21 +600,21 @@ function drawAngleView(ctx) {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.font = '700 28px system-ui, sans-serif';
-  ctx.fillStyle = '#d8c4bb';
+  ctx.fillStyle = '#123a4a';
   ctx.fillText(angleLocked ? '離すと、溜めに入る' : 'タップで角度を決める', W / 2, 150);
 
   ctx.font = '900 104px system-ui, sans-serif';
-  ctx.lineWidth = 11; ctx.lineJoin = 'round'; ctx.strokeStyle = '#000';
+  ctx.lineWidth = 11; ctx.lineJoin = 'round'; ctx.strokeStyle = '#3fb4dd';
   ctx.strokeText(`${a.toFixed(0)}°`, W / 2, 286);
-  ctx.fillStyle = good ? '#ffd97a' : '#fff';
+  ctx.fillStyle = good ? '#c98000' : '#123a4a';
   ctx.fillText(`${a.toFixed(0)}°`, W / 2, 286);
 
   ctx.font = '600 23px system-ui, sans-serif';
-  ctx.fillStyle = good ? '#ffd97a' : '#a08a80';
+  ctx.fillStyle = good ? '#c98000' : '#4e7d8f';
   ctx.fillText(good ? 'いい角度だ' : 'ベストは 45°', W / 2, 330);
 
   ctx.font = '700 24px system-ui, sans-serif';
-  ctx.fillStyle = '#8a7a72';
+  ctx.fillStyle = '#4e7d8f';
   ctx.fillText(`${sel.name}（${sel.size}）`, W / 2, 386);
   ctx.restore();
 }
@@ -699,14 +699,14 @@ function drawChargeView(ctx) {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.font = '700 26px system-ui, sans-serif';
-  ctx.fillStyle = '#d8c4bb';
+  ctx.fillStyle = '#123a4a';
   ctx.fillText(charging ? '' : '長押しで溜める', W / 2, 200);
   if (charging && gauge >= 1) {
     const p = 1 + Math.sin(anim * 20) * .06;
     ctx.save();
     ctx.translate(W / 2, 250); ctx.scale(p, p);
     ctx.font = '900 54px system-ui, sans-serif';
-    ctx.lineWidth = 9; ctx.strokeStyle = '#000';
+    ctx.lineWidth = 9; ctx.strokeStyle = '#3fb4dd';
     const msg = over > 1.2 ? 'まだ溜められる' : 'もっと溜めろ';
     ctx.strokeText(msg, 0, 0);
     ctx.fillStyle = '#ff8a3a';
@@ -714,49 +714,52 @@ function drawChargeView(ctx) {
     ctx.restore();
   }
   ctx.font = '900 30px system-ui, sans-serif';
-  ctx.fillStyle = '#ffd97a';
+  ctx.fillStyle = '#c98000';
   ctx.fillText(`${lockedAngle.toFixed(0)}°`, W / 2, 150);
   ctx.font = '700 24px system-ui, sans-serif';
-  ctx.fillStyle = '#8a7a72';
+  ctx.fillStyle = '#4e7d8f';
   ctx.fillText(`${sel.name}（${sel.size}）`, W / 2, 330);
   ctx.restore();
 }
 
 function drawSelect(ctx) {
   const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#2f1c26'); bg.addColorStop(1, '#180e12');
+  bg.addColorStop(0, '#8fe0f8'); bg.addColorStop(1, '#d6f4ff');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
   ctx.save();
   ctx.textAlign = 'center';
+  ctx.lineJoin = 'round';
   ctx.font = '900 52px system-ui, sans-serif';
-  ctx.fillStyle = '#ffcf9a';
+  ctx.lineWidth = 9; ctx.strokeStyle = '#3fb4dd';
+  ctx.strokeText('鼻くそ飛ばし', W / 2, 150);
+  ctx.fillStyle = '#fff';
   ctx.fillText('鼻くそ飛ばし', W / 2, 150);
-  ctx.font = '600 24px system-ui, sans-serif';
-  ctx.fillStyle = '#a08a80';
+  ctx.font = '700 24px system-ui, sans-serif';
+  ctx.fillStyle = '#4e7d8f';
   ctx.fillText('飛ばす鼻くそを選ぶ　※在庫から1つ減る', W / 2, 196);
 
   // サイズ別の自己ベスト。記録が5本あるので更新機会が枯れない
-  ctx.font = '700 21px system-ui, sans-serif';
   const bw = W / 5;
   for (let i = 0; i < SIZES.length; i++) {
     const s = SIZES[i], x = bw * i + bw / 2;
-    ctx.fillStyle = '#7a6a62'; ctx.fillText(s, x, 268);
+    ctx.font = '700 21px system-ui, sans-serif';
+    ctx.fillStyle = '#4e7d8f'; ctx.fillText(s, x, 268);
     const r = S.records[s] || 0;
-    ctx.fillStyle = r > 0 ? '#8ce99a' : '#4a3a38';
+    ctx.fillStyle = r > 0 ? '#17a86a' : '#9dc4d4';
     ctx.font = '900 22px system-ui, sans-serif';
     ctx.fillText(r > 0 ? fmtDist(r) : '—', x, 300);
-    ctx.font = '700 21px system-ui, sans-serif';
   }
-  ctx.fillStyle = '#5a4a44'; ctx.font = '600 19px system-ui, sans-serif';
+  ctx.fillStyle = '#79a6b8'; ctx.font = '700 19px system-ui, sans-serif';
   ctx.fillText('サイズ別 自己ベスト', W / 2, 340);
 
   const list = owned();
   if (!list.length) {
-    ctx.font = '800 32px system-ui, sans-serif';
-    ctx.fillStyle = '#8a6a5c';
+    ctx.font = '900 32px system-ui, sans-serif';
+    ctx.fillStyle = '#123a4a';
     ctx.fillText('在庫がない', W / 2, 680);
-    ctx.font = '600 24px system-ui, sans-serif';
+    ctx.font = '700 24px system-ui, sans-serif';
+    ctx.fillStyle = '#4e7d8f';
     ctx.fillText('下のふちから鼻に戻って、ほじってこい', W / 2, 730);
     ctx.restore();
     return;
@@ -768,16 +771,16 @@ function drawSelect(ctx) {
     const [x, y, w, h] = cellRect(i);
     const hot = Input.x >= x && Input.x <= x + w && Input.y >= y && Input.y <= y + h;
     ctx.save();
-    ctx.fillStyle = hot ? '#4a3028' : '#2e1d24';
-    ctx.strokeStyle = hot ? '#ffd97a' : RARITY_COLOR[b.rarity];
-    ctx.lineWidth = hot ? 3 : 2;
-    ctx.beginPath(); ctx.roundRect(x, y, w, h, 14); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = hot ? '#fff8e0' : '#f4fdff';
+    ctx.strokeStyle = hot ? '#ffb31f' : RARITY_COLOR[b.rarity];
+    ctx.lineWidth = hot ? 4 : 3;
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.fill(); ctx.stroke();
 
     drawBooger(ctx, b, x + w / 2, y + h / 2 - 6, 30 * (hot ? 1.1 : 1), 0);
 
     ctx.textAlign = 'right';
     ctx.font = '900 20px system-ui, sans-serif';
-    ctx.fillStyle = '#ffd97a';
+    ctx.fillStyle = '#b06a00';
     ctx.fillText(`×${stockOf(b.id)}`, x + w - 7, y + h - 7);
 
     ctx.textAlign = 'left';
@@ -788,8 +791,8 @@ function drawSelect(ctx) {
     // パワーが足りているか。足りないと本気が出ない
     const pr = powerRatio(b.size);
     ctx.textAlign = 'center';
-    ctx.font = '700 14px system-ui, sans-serif';
-    ctx.fillStyle = pr >= 1 ? '#8ce99a' : pr > .4 ? '#ffd97a' : '#ff6b6b';
+    ctx.font = '800 14px system-ui, sans-serif';
+    ctx.fillStyle = pr >= 1 ? '#17a86a' : pr > .5 ? '#c98000' : '#e0364f';
     ctx.fillText(b.size + (pr >= 1 ? '' : ` ${Math.round(pr * 100)}%`), x + w / 2, y + h - 8);
     ctx.restore();
   }
@@ -797,8 +800,8 @@ function drawSelect(ctx) {
   // 実際に使った行数の下に置く。固定行数で置くと画面外に落ちる
   ctx.save();
   ctx.textAlign = 'center';
-  ctx.font = '600 19px system-ui, sans-serif';
-  ctx.fillStyle = '#6a5a54';
+  ctx.font = '700 19px system-ui, sans-serif';
+  ctx.fillStyle = '#79a6b8';
   ctx.fillText('％＝本気度。パワーが足りないと本来の飛距離が出ない',
     W / 2, Math.min(GY + gridRows() * (CH + GAP) + 34, H - 40));
   ctx.restore();
@@ -813,7 +816,7 @@ flyScene.render = function () {
   if (state === 'flight' || state === 'land') { drawWorld(ctx); }
   else {
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#3a2430'); bg.addColorStop(1, '#170e12');
+    bg.addColorStop(0, '#8fe0f8'); bg.addColorStop(1, '#d6f4ff');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     if (state === 'angle') drawAngleView(ctx);
     else if (state === 'charge') drawChargeView(ctx);

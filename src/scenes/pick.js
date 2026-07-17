@@ -121,11 +121,14 @@ pickScene.update = function (dt, isActive) {
     if (grindV > .28) shake(grindV * 8, .12);
     if (grindV > .75 && Math.random() < .25) buzz(8);
 
-    // 指は穴に固定。ポインタとの差分ぶん、鼻がゴムのように伸びる
-    const ax = nostrilCX(), ay = N.nostrilY + depth01() * N.depthMax * .5;
-    let tx = lerp(ax, Input.x, .45), ty = lerp(ay, Input.y, .45);
-    const dx = tx - ax, dy = ty - ay, dd = Math.hypot(dx, dy), lim = 78;
-    if (dd > lim) { tx = ax + dx / dd * lim; ty = ay + dy / dd * lim; }
+    // 指は穴に固定。ポインタとの差分ぶん、鼻のほうがゴムのように伸びる（企画の指定）。
+    // 指を大きく動かすと穴から出てしまうので、追従は弱く・可動域は穴のサイズに収める。
+    const ax = nostrilCX(), ay = N.nostrilY - 6 + depth01() * N.depthMax * .42;
+    let tx = lerp(ax, Input.x, .16), ty = lerp(ay, Input.y, .1);
+    const dx = tx - ax, dy = ty - ay;
+    const lx = N.nostrilRX * .5, ly = N.nostrilRY * .7;
+    const k = Math.hypot(dx / lx, dy / ly);
+    if (k > 1) { tx = ax + dx / k; ty = ay + dy / k; }
     fx = lerp(fx, tx, .5); fy = lerp(fy, ty, .5);
 
     if (!Input.down) {
@@ -225,9 +228,9 @@ function revealPx(size) {
 
 // ── 描画 ────────────────────────────────────────────
 
-/** 穴のパス。指の位置から離れる向きに点を押して、穴が歪む */
-function nostrilPath(ctx, cx, cy, rx, ry, push) {
-  ctx.beginPath();
+/** 穴のパス。指の位置から離れる向きに点を押して、穴が歪む。
+    beginPath は呼ばない。呼び出し側で積み増せるようにしておく（クリップで要る）。 */
+function addNostrilPath(ctx, cx, cy, rx, ry, push) {
   const n = 40;
   for (let i = 0; i <= n; i++) {
     const a = i / n * TAU;
@@ -243,31 +246,61 @@ function nostrilPath(ctx, cx, cy, rx, ry, push) {
   ctx.closePath();
 }
 
-/** 顔の下地。楕円で描くと縁が見えて「卵」になるので、画面いっぱいに塗って
-    極端な顔のクローズアップにする。鼻本体と違ってグリグリでは動かさない。 */
-function drawFace(ctx) {
-  const fg = ctx.createLinearGradient(0, 0, 0, H);
-  fg.addColorStop(0, '#d99a76'); fg.addColorStop(.45, '#f0b892'); fg.addColorStop(1, '#c9825f');
-  ctx.fillStyle = fg;
+/** 背景。肌色は鼻だけに使い、それ以外は水色で抜く。
+    画面全部を肌色で埋めると、地味なうえに鼻がどこにあるのか分からなくなる。 */
+function drawBg(ctx) {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#8fe0f8'); bg.addColorStop(1, '#d6f4ff');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  const vig = ctx.createRadialGradient(N.cx, 660, 200, N.cx, 660, 760);
-  vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(30,8,12,.74)');
-  ctx.fillStyle = vig;
+  // 鼻の後ろの光。視線を中央に寄せる
+  const gl = ctx.createRadialGradient(N.cx, 640, 40, N.cx, 660, 520);
+  gl.addColorStop(0, 'rgba(255,255,255,.75)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gl;
   ctx.fillRect(0, 0, W, H);
+
+  // 集中線。ほじっている間だけ、グリグリの強さに応じて濃くなる
+  const k = state === 'picking' ? .05 + grindV * .18 : .05;
+  ctx.save();
+  ctx.globalAlpha = k;
+  ctx.strokeStyle = '#1d7fa5';
+  ctx.lineWidth = 16;
+  ctx.translate(N.cx, 660);
+  for (let i = 0; i < 24; i++) {
+    ctx.rotate(TAU / 24);
+    ctx.beginPath(); ctx.moveTo(300, 0); ctx.lineTo(900, 0); ctx.stroke();
+  }
+  ctx.restore();
 }
 
-function drawNose(ctx) {
+/** 鼻の変形。指はこれに乗らないので、穴のクリップを作るときも同じ変換をかける必要がある */
+function noseTransform(ctx) {
   const wob = state === 'picking' ? Math.sin(anim * 26) * grindV * 2.5 : 0;
-
-  ctx.save();
   ctx.translate(N.cx, N.cy);
   // グリグリすると鼻ごと引っぱられる
   if (state === 'picking') {
-    ctx.translate((fx - nostrilCX()) * .09, (fy - N.nostrilY) * .05 + wob);
-    ctx.rotate((fx - nostrilCX()) * .00016);
+    ctx.translate((fx - nostrilCX()) * .22, (fy - N.nostrilY) * .12 + wob);
+    ctx.rotate((fx - nostrilCX()) * .0004);
   }
   ctx.translate(-N.cx, -N.cy);
+}
+
+/** 両方の穴のパスを積む。指をクリップで抜くのにも使う */
+function addHoles(ctx, grow = 0) {
+  for (const s of [-1, 1]) {
+    const cx = N.cx + s * N.nostrilDX;
+    const active = state === 'picking' && s === side;
+    const push = active ? { x: fx, y: fy, p: 16 + depth01() * 20 + grindV * 16 } : null;
+    addNostrilPath(ctx, cx, N.nostrilY,
+      N.nostrilRX * (active ? 1.08 : 1) + grow,
+      N.nostrilRY * (active ? 1.12 : 1) + grow, push);
+  }
+}
+
+function drawNose(ctx) {
+  ctx.save();
+  noseTransform(ctx);
 
   // 鼻すじ → 小鼻 → 鼻先
   const g = ctx.createLinearGradient(0, 320, 0, 820);
@@ -299,23 +332,13 @@ function drawNose(ctx) {
   }
 
   // 穴
-  const inHole = (state === 'picking');
-  for (const s of [-1, 1]) {
-    const cx = N.cx + s * N.nostrilDX;
-    const active = inHole && s === side;
-    const push = active ? { x: fx, y: fy, p: 16 + depth01() * 20 + grindV * 16 } : null;
-    const rx = N.nostrilRX * (active ? 1.08 : 1), ry = N.nostrilRY * (active ? 1.12 : 1);
+  ctx.beginPath(); addHoles(ctx, 5);
+  ctx.fillStyle = 'rgba(150,72,58,.55)'; ctx.fill();
 
-    ctx.save();
-    nostrilPath(ctx, cx, N.nostrilY, rx + 5, ry + 5, push);
-    ctx.fillStyle = 'rgba(150,72,58,.55)'; ctx.fill();
-
-    nostrilPath(ctx, cx, N.nostrilY, rx, ry, push);
-    const hg = ctx.createRadialGradient(cx, N.nostrilY - 6, 2, cx, N.nostrilY, rx * 1.3);
-    hg.addColorStop(0, '#1a0508'); hg.addColorStop(1, '#4a1418');
-    ctx.fillStyle = hg; ctx.fill();
-    ctx.restore();
-  }
+  ctx.beginPath(); addHoles(ctx, 0);
+  const hg = ctx.createRadialGradient(N.cx, N.nostrilY - 8, 2, N.cx, N.nostrilY, 130);
+  hg.addColorStop(0, '#2a0a0e'); hg.addColorStop(1, '#4a1418');
+  ctx.fillStyle = hg; ctx.fill();
 
   // てかり
   ctx.globalAlpha = .5;
@@ -325,6 +348,33 @@ function drawNose(ctx) {
   ctx.beginPath(); ctx.ellipse(N.cx + 8, 400, 14, 62, .06, 0, TAU); ctx.fill();
   ctx.globalAlpha = 1;
 
+  ctx.restore();
+}
+
+/**
+ * 指を穴に「入れる」。
+ * 指をそのまま鼻の上に描くと、穴の手前に指が乗っているようにしか見えない。
+ * 穴の内と外でクリップを分け、内側は暗く落とす。これで指先が穴に吸い込まれて見える。
+ * クリップ用の穴のパスは、鼻と同じ変換をかけてから積む必要がある（指は鼻と一緒に動かないため）。
+ */
+function drawFingerInNose(ctx, x, y) {
+  // 穴の外側：普通に描く
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  ctx.save(); noseTransform(ctx); addHoles(ctx, 0); ctx.restore();
+  ctx.clip('evenodd');
+  drawFinger(ctx, x, y);
+  ctx.restore();
+
+  // 穴の内側：同じ指を、鼻の中の暗がりに沈めて描く
+  ctx.save();
+  ctx.beginPath();
+  ctx.save(); noseTransform(ctx); addHoles(ctx, 0); ctx.restore();
+  ctx.clip();
+  drawFinger(ctx, x, y);
+  ctx.fillStyle = 'rgba(58,10,16,.72)';
+  ctx.fillRect(0, 0, W, H);
   ctx.restore();
 }
 
@@ -414,7 +464,7 @@ pickScene.render = function () {
   const ctx = pickScene.ctx;
   if (!ctx) return;
 
-  drawFace(ctx);
+  drawBg(ctx);
   drawNose(ctx);
 
   // 後光は鼻の上・鼻くその下。顔より奥に置くと鼻に隠れて見えなくなる
@@ -472,7 +522,7 @@ pickScene.render = function () {
   }
 
   // 指（リビール中は引っ込める）
-  if (state !== 'reveal' || !isNew) drawFinger(ctx, fx, fy);
+  if (state !== 'reveal' || !isNew) drawFingerInNose(ctx, fx, fy);
 
   // スカ
   if (state === 'whiff') {
@@ -482,10 +532,10 @@ pickScene.render = function () {
     ctx.font = '900 44px system-ui, sans-serif';
     ctx.lineWidth = 8; ctx.strokeStyle = '#000';
     ctx.strokeText('スカ……', W / 2, 990);
-    ctx.fillStyle = '#9a8f86';
+    ctx.fillStyle = '#fff';
     ctx.fillText('スカ……', W / 2, 990);
-    ctx.font = '600 22px system-ui, sans-serif';
-    ctx.fillStyle = '#7a6a62';
+    ctx.font = '700 22px system-ui, sans-serif';
+    ctx.fillStyle = '#4e7d8f';
     ctx.fillText('溜まりきる前に離した', W / 2, 1026);
     ctx.restore();
   }
@@ -498,10 +548,10 @@ pickScene.render = function () {
     ctx.globalAlpha = .45 + Math.sin(hintT * 2.4) * .3;
     ctx.textAlign = 'center';
     ctx.font = '700 26px system-ui, sans-serif';
-    ctx.fillStyle = '#ffcf9a';
+    ctx.fillStyle = '#123a4a';
     ctx.fillText('鼻の穴に指を入れて、長押し', W / 2, 1000);
     ctx.font = '600 21px system-ui, sans-serif';
-    ctx.fillStyle = '#a08a80';
+    ctx.fillStyle = '#4e7d8f';
     ctx.fillText('押したままグリグリすると気持ちがいい', W / 2, 1036);
     ctx.globalAlpha = .35;
     ctx.fillText('画面のふちに寄ると となりへ', W / 2, 1090);

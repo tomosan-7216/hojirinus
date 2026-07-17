@@ -56,11 +56,43 @@ export function go(name) {
 // 帯に入ると隣が最大12%覗き、奥まで押し込むか少し留まると確定する。
 // この「覗き」が何があるかを教えるので、説明文を置かずに済む。
 const EDGES = [
-  { key: 'up',    depth: (x, y) => (CFG.edgeBand - y) / CFG.edgeBand,       ax: 'y', dir: -1 },
-  { key: 'down',  depth: (x, y) => (y - (H - CFG.edgeBand)) / CFG.edgeBand, ax: 'y', dir: +1 },
-  { key: 'left',  depth: (x, y) => (CFG.edgeBand - x) / CFG.edgeBand,       ax: 'x', dir: -1 },
-  { key: 'right', depth: (x, y) => (x - (W - CFG.edgeBand)) / CFG.edgeBand, ax: 'x', dir: +1 },
+  { key: 'up',    depth: (x, y) => (CFG.edgeBand - y) / CFG.edgeBand,       ax: 'y', dir: -1, arrow: '▲' },
+  { key: 'down',  depth: (x, y) => (y - (H - CFG.edgeBand)) / CFG.edgeBand, ax: 'y', dir: +1, arrow: '▼' },
+  { key: 'left',  depth: (x, y) => (CFG.edgeBand - x) / CFG.edgeBand,       ax: 'x', dir: -1, arrow: '◀' },
+  { key: 'right', depth: (x, y) => (x - (W - CFG.edgeBand)) / CFG.edgeBand, ax: 'x', dir: +1, arrow: '▶' },
 ];
+
+// エッジタブ。どっちに何があるかを常時見せ、押し込み量をバーで返す。
+// バーが満タンになった瞬間＝遷移が確定する、が守られるように出す（下の progressOf）。
+const LABEL = { pick: 'はな', fly: 'とばす', collection: 'ずかん', shop: 'ショップ', result: 'やめる' };
+const tabs = {};
+
+function buildEdgeUI() {
+  const root = $('#edge-ui');
+  for (const e of EDGES) {
+    const el = document.createElement('div');
+    el.className = 'edge-tab';
+    el.dataset.dir = e.key;
+    el.innerHTML = `<i class="et-fill"></i><span class="et-in"><span class="et-arrow">${e.arrow}</span><span class="et-label"></span></span>`;
+    root.appendChild(el);
+    tabs[e.key] = { el, label: el.querySelector('.et-label') };
+  }
+}
+
+/** 確定条件は「押し込み62%」と「帯内に280ms滞在」のOR。表示は両者の大きい方を出す */
+const progressOf = (d, dw) => clamp(Math.max(d / CFG.edgeCommit, dw / CFG.edgeDwell), 0, 1);
+
+function syncEdgeUI(cur, hidden, bestKey, bestD) {
+  for (const e of EDGES) {
+    const t = tabs[e.key], to = cur[e.key];
+    if (!to || hidden) { t.el.classList.remove('show', 'hot'); t.el.style.setProperty('--p', 0); continue; }
+    t.el.classList.add('show');
+    t.label.textContent = LABEL[to];
+    const on = bestKey === e.key;
+    t.el.classList.toggle('hot', on);
+    t.el.style.setProperty('--p', on ? progressOf(bestD, dwell) : 0);
+  }
+}
 
 let dwell = 0, peekTarget = null;
 // 遷移が確定したら、いったん帯から出るまで次を受け付けない。
@@ -82,8 +114,8 @@ function updateEdges(dt) {
   // あわせて armed を落としておく。ここを落とさないと、グリグリで指が端まで流れたまま
   // ほじりが終わった瞬間に隣へ飛ばされ、「操作中の誤遷移を防ぐ」意図が結局果たせない。
   // アクション明けは、一度帯から出るまで反応しない。
-  if (sc.locked || !started || slideT < 1) { relax(dt); armed = false; return; }
-  if (!pointerLive()) { relax(dt); return; }
+  if (sc.locked || !started || slideT < 1) { relax(dt); armed = false; syncEdgeUI(cur, true); return; }
+  if (!pointerLive()) { relax(dt); syncEdgeUI(cur, false, null, 0); return; }
 
   let best = null, bestD = 0;
   for (const e of EDGES) {
@@ -92,11 +124,12 @@ function updateEdges(dt) {
     if (d > bestD) { bestD = d; best = e; }
   }
 
-  if (!best || bestD <= 0.02) { relax(dt); armed = true; return; }
-  if (!armed) { relax(dt); return; }
+  if (!best || bestD <= 0.02) { relax(dt); armed = true; syncEdgeUI(cur, false, null, 0); return; }
+  if (!armed) { relax(dt); syncEdgeUI(cur, false, null, 0); return; }
 
   peekTarget = cur[best.key];
   dwell += dt;
+  syncEdgeUI(cur, false, best.key, bestD);
 
   const amt = easeOut(bestD) * CFG.edgePeek * best.dir;
   const tx = best.ax === 'x' ? amt : 0;
@@ -211,11 +244,18 @@ export function backToTitle() {
 // ── 起動 ────────────────────────────────────────────
 load();
 initInput(stage);
+buildEdgeUI();
 for (const k in SCENES) SCENES[k].s.init?.();
-// ResizeObserver なら、初期レイアウト確定・ウィンドウリサイズ・回転を1本で拾える
+// ResizeObserver は初期レイアウト確定を拾ってくれるが、これ一本には頼れない。
+// RO のコールバックはレンダリング処理の一部として配信されるので、
+// 一度も描画されていないタブ（バックグラウンドで開かれた等）では発火しない。
+// その状態で初回 doFit() がレイアウト前に走ると、フィットしないまま固まる。
+// resize と load も張って、どれか1つでも通れば復帰するようにしておく。
 new ResizeObserver(doFit).observe(fit);
-doFit();
+window.addEventListener('resize', doFit);
+window.addEventListener('load', doFit);
 window.addEventListener('orientationchange', () => setTimeout(doFit, 120));
+doFit();
 slideT = 1;
 syncHud();
 requestAnimationFrame(frame);
@@ -226,4 +266,5 @@ window.__hojiri = {
   go, S, step: (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt); },
   scene: n => SCENES[n].s,
   start: startGame,
+  fit: doFit,
 };
