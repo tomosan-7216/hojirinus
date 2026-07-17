@@ -107,5 +107,7 @@ docs/
 
 ---
 
-HAL 3年生前期 / OT31 課題 「Copilotにお願いして何かWebアプリケーションを作ってもらおう」
-制作: Claude Opus 4.8 (Claude Code)
+HAL 3年生前期 / OT31 課題 「AIにお願いして何かWebアプリケーションを作ってもらおう」
+
+**使用AI: Claude Opus 4.8（Claude Code）**
+入れたプロンプトの記録は [docs/prompts.md](docs/prompts.md)、AIが出した実装計画は [docs/実装計画書.md](docs/実装計画書.md)。
