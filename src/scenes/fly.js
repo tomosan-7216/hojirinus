@@ -278,7 +278,9 @@ flyScene.update = function (dt, isActive) {
   }
 
   else if (state === 'land') {
-    if (t > 2.6) reset();
+    // 結果を眺める一拍は置くが、待たせ切らない。タップで飛ばせる。
+    // ゲージ速度を一定にしたのと同じ理由（慣れたプレイヤーのテンポを殺さない）。
+    if (t > 2.6 || (justDown && t > .45)) reset();
   }
 };
 
@@ -831,7 +833,7 @@ flyScene.render = function () {
     ctx.fillText(fmtDist(dist), W / 2, 530);
     ctx.font = '700 24px system-ui, sans-serif';
     ctx.fillStyle = '#6a5a54';
-    ctx.fillText(t > 1.6 ? 'もどります…' : '', W / 2, 596);
+    ctx.fillText(t > .45 ? 'タップでもどる' : '', W / 2, 596);
     ctx.restore();
   }
 };
