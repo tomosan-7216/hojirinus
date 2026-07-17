@@ -67,6 +67,78 @@ const STARS = (() => {
   return a;
 })();
 
+// 空を通過する連中。段階ごとに住人が変わる
+const CRITTER = ['none', 'bird', 'bird', 'plane', 'balloon', 'ufo'];
+let critters = [];
+
+/**
+ * 当たっても飛距離には一切影響しない。笑い要員としてだけ置く。
+ * 減速させると罰になり、せっかく溜めた快感を台無しにする。
+ * 高さは軌道の頂点を基準に撒くので、必ず何匹かは当たる位置に来る。
+ */
+function spawnCritters(d, apex) {
+  critters = [];
+  const r = mulberry32(Math.round(d * 977) + 7);
+  for (let m = 30; m < d * 1.12; m += 50 + r() * 70) {
+    const kind = CRITTER[stageAt(m)];
+    if (kind === 'none') continue;
+    critters.push({ m, y: apex * (.12 + r() * .95), kind, hit: 0, flip: r() < .5 });
+  }
+}
+
+function drawCritter(ctx, c, x, y, s) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (c.hit) ctx.rotate(c.hit * 9);          // ぶつけられて回転しながら落ちていく
+  ctx.scale(c.flip ? -s : s, s);
+  ctx.lineWidth = 2.5 / s;
+  switch (c.kind) {
+    case 'bird': {
+      // 浅いと棒にしか見えない。カモメの「M」がはっきり出るまで曲げる
+      const flap = c.hit ? 20 : Math.sin(anim * 7 + c.m) * 14 - 36;
+      ctx.strokeStyle = 'rgba(30,30,40,.85)';
+      ctx.lineWidth = 4 / s;
+      ctx.beginPath();
+      ctx.moveTo(-30, 0);
+      ctx.quadraticCurveTo(-15, flap, 0, 0);
+      ctx.quadraticCurveTo(15, flap, 30, 0);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(30,30,40,.85)';
+      ctx.beginPath(); ctx.ellipse(0, 1, 5, 4, 0, 0, TAU); ctx.fill();
+      break;
+    }
+    case 'plane':
+      ctx.fillStyle = 'rgba(245,245,252,.95)';
+      ctx.beginPath(); ctx.ellipse(0, 0, 42, 8, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-12, -22); ctx.lineTo(-4, 0); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-12, 22); ctx.lineTo(-4, 0); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-34, 0); ctx.lineTo(-44, -14); ctx.lineTo(-30, 0); ctx.closePath(); ctx.fill();
+      break;
+    case 'balloon':
+      ctx.fillStyle = 'rgba(235,95,115,.9)';
+      ctx.beginPath(); ctx.ellipse(0, -20, 24, 28, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,220,220,.6)'; ctx.lineWidth = 2.5 / s;
+      ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(0, 8); ctx.stroke();
+      ctx.fillStyle = 'rgba(90,60,40,.95)';
+      ctx.fillRect(-9, 8, 18, 14);
+      break;
+    case 'ufo':
+      ctx.fillStyle = 'rgba(150,240,190,.9)';
+      ctx.beginPath(); ctx.ellipse(0, 0, 38, 10, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(210,255,235,.95)';
+      ctx.beginPath(); ctx.ellipse(0, -9, 17, 14, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = 'rgba(90,220,160,.9)';
+      for (const dx of [-24, 0, 24]) { ctx.beginPath(); ctx.arc(dx, 2, 3.5, 0, TAU); ctx.fill(); }
+      break;
+  }
+  // ぶつけられた奴には鼻くそが貼り付いたまま残る
+  if (c.hit && sel) {
+    ctx.fillStyle = sel.color;
+    ctx.beginPath(); ctx.arc(0, 0, 6, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+
 /**
  * 段階の切り替わり具合 0..1。
  * 素直に線形補間すると、茶色い部屋から青空へ向かう途中がずっと濁った灰色になる。
@@ -182,6 +254,16 @@ flyScene.update = function (dt, isActive) {
     if (st !== stage) { stage = st; stageT = 0; sfxCoin(); }
     stageT += dt;
 
+    // 通過オブジェクトへの命中。速度には一切触らない
+    for (const c of critters) {
+      if (c.hit) { c.hit += dt; continue; }
+      if (Math.abs(bx - c.m) < 2.6 && Math.abs(by - c.y) < 2.6) {
+        c.hit = 0.001;
+        sfxSplat(); shake(6, .16); buzz(14);
+        popup(W * .32, GROUND_Y - by * ppm - 40, 'ベチャッ', '#fff', 30);
+      }
+    }
+
     // 自己ベストの旗を越えた瞬間
     if (!wasBest && prevBest > 0 && bx >= prevBest) {
       wasBest = true;
@@ -213,6 +295,10 @@ function launch() {
   prevBest = S.records[sel.size] || 0;
   wasBest = false;
   state = 'flight'; t = 0;
+
+  // 着地予測と頂点は物理から出る。これで通過オブジェクトを軌道上に撒ける
+  const predict = v * v * Math.sin(2 * rad) / CFG.gravity;
+  spawnCritters(predict, v * v * Math.sin(rad) ** 2 / (2 * CFG.gravity));
 
   sfxLaunch(gauge);
   shake(16 + Math.min(over, 2) * 8, .3);
@@ -381,6 +467,15 @@ function drawWorld(ctx) {
     }
   }
   ctx.restore();
+
+  // 通過オブジェクト
+  for (const c of critters) {
+    const sx = (c.m - camM) * ppm;
+    if (sx < -60 || sx > W + 60) continue;
+    const sy = gy - c.y * ppm + (c.hit ? c.hit * c.hit * 900 : 0);   // 当たった奴は落ちる
+    if (sy < -60 || sy > H + 60) continue;
+    drawCritter(ctx, c, sx, sy, clamp(ppm / 22, .35, 1.15));
+  }
 
   // 自己ベストの旗
   if (prevBest > 0) {
