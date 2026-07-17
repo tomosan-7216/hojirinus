@@ -1,7 +1,9 @@
 // ホジリヌス チューニング定数
 // 触りたい数字は全部ここ。他のファイルに数字を散らさない。
 
-export const W = 720, H = 1280;
+// 1文1名で書く。file:// 用のバンドル生成が export 名を拾えるようにするため
+export const W = 720;
+export const H = 1280;
 
 export const SIZES  = ['小', '中', '大', '特大', '伝説'];
 export const RARITY = ['N', 'R', 'SR', 'UR', 'SECRET'];

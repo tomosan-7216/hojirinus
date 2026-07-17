@@ -10,15 +10,17 @@ import { NORMAL } from '../data/boogers.js';
 import { SIZES } from '../config.js';
 import { fmt, fmtDist } from '../core/util.js';
 
-export const resultScene = { name: 'result', locked: false };
+// ボタンの行き先は main.js が差し込む。
+// ここから main.js を import し返すと循環参照になり、それを避けるための
+// 動的 import はバンドル（file:// 用）を作るときに解決できなくなる。
+export const resultScene = {
+  name: 'result', locked: false,
+  onBack: () => {}, onQuit: () => {},
+};
 
 resultScene.init = function () {
-  document.querySelector('#btn-back').addEventListener('click', () => {
-    import('../main.js').then(m => m.go('pick'));
-  });
-  document.querySelector('#btn-quit').addEventListener('click', () => {
-    import('../main.js').then(m => m.backToTitle());
-  });
+  document.querySelector('#btn-back').addEventListener('click', () => resultScene.onBack());
+  document.querySelector('#btn-quit').addEventListener('click', () => resultScene.onQuit());
 };
 
 resultScene.enter = function () {

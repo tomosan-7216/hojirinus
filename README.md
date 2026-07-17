@@ -52,16 +52,31 @@
 
 ## 動かす
 
-ビルド不要。ただし **ES Modules は `file://` では動かない**（CORSで弾かれる）ので、httpで配信する必要がある。
+**`index.html` をダブルクリックするだけで動く。** サーバーもビルドも要らない。
 
-```bash
-# 何かしらの静的サーバーで配信する
-npx serve .
-# → http://localhost:3000
+### なぜ2通りの読み込み方があるのか
+
+`index.html` はまず `src/` の ES Modules を読もうとする。これが本体。
+ただし **`file://` で開くと Chrome は `<script type="module">` を CORS で拒否する**（モジュールは origin `null` からフェッチできない）。ダブルクリックした瞬間これに当たり、何も動かない画面になる。
+
+クラシックスクリプトはフェッチに CORS がかからないので、モジュールの読み込みに失敗したときだけ `hojirinus.bundle.js`（`src/` を1本に束ねた版）に自動で切り替える。
+
+| 開き方 | 動くもの |
+|---|---|
+| GitHub Pages / ローカルサーバー（http） | `src/` の ES Modules（本体） |
+| `index.html` をダブルクリック（file://） | `hojirinus.bundle.js`（自動で切り替わる） |
+
+画像も音声も持っていないので、フェッチするものが他に無く、`file://` でも欠けるものはない。
+
+### バンドルを作り直す
+
+**`src/` を編集したら、必ず作り直すこと。** 忘れるとダブルクリック版だけ古いまま残る。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
-VS Code なら Live Server 拡張でも可。
-GitHub Pages は http 配信なので、公開版はそのまま動く。
+`build.ps1` は `src/` の各モジュールを依存順に並べ、`import`/`export` だけを差し替えて `hojirinus.bundle.js` を吐く。node も python も要らない（Windows の PowerShell だけで完結する）。
 
 ---
 

@@ -245,6 +245,9 @@ export function backToTitle() {
 load();
 initInput(stage);
 buildEdgeUI();
+// リザルトのボタンの行き先はここで差し込む（result.js から main.js を import し返さない）
+resultScene.onBack = () => go('pick');
+resultScene.onQuit = () => backToTitle();
 for (const k in SCENES) SCENES[k].s.init?.();
 // ResizeObserver は初期レイアウト確定を拾ってくれるが、これ一本には頼れない。
 // RO のコールバックはレンダリング処理の一部として配信されるので、
