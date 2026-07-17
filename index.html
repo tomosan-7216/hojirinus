@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#1a1014">
+<title>ホジリヌス</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div id="fit">
+  <div id="stage">
+
+    <div id="world">
+      <!-- 上：鼻くそ飛ばし -->
+      <section class="cell" id="cell-fly" style="--cx:1;--cy:0">
+        <canvas id="cv-fly" class="scene-canvas"></canvas>
+      </section>
+
+      <!-- 左：ショップ -->
+      <section class="cell" id="cell-shop" style="--cx:0;--cy:1">
+        <div class="pane">
+          <h2 class="pane-title">ショップ</h2>
+          <div class="coinbar">所持コイン <b id="shop-coins">0</b></div>
+          <div id="shop-list"></div>
+          <div class="sim">
+            <div class="sim-title">いまの想定飛距離（45°・満タン）</div>
+            <div id="sim-list"></div>
+          </div>
+          <p class="hint">ボタンは長押しで連続購入できる</p>
+        </div>
+        <div class="edge-hint edge-hint-r">鼻へ →</div>
+      </section>
+
+      <!-- 中央：鼻ほじり（ベース） -->
+      <section class="cell" id="cell-pick" style="--cx:1;--cy:1">
+        <canvas id="cv-pick" class="scene-canvas"></canvas>
+      </section>
+
+      <!-- 右：コレクション -->
+      <section class="cell" id="cell-collection" style="--cx:2;--cy:1">
+        <div class="pane">
+          <h2 class="pane-title">鼻くそ図鑑</h2>
+          <div class="coinbar">
+            <span id="col-count">0 / 0</span>
+            <span id="col-secret"></span>
+          </div>
+          <div id="col-grid"></div>
+        </div>
+        <div class="edge-hint edge-hint-l">← 鼻へ</div>
+      </section>
+
+      <!-- 下：セッションリザルト -->
+      <section class="cell" id="cell-result" style="--cx:1;--cy:2">
+        <div class="pane pane-center">
+          <h2 class="pane-title">今回のほじり</h2>
+          <div id="result-body"></div>
+          <button id="btn-back" class="btn btn-ghost">まだほじる</button>
+          <button id="btn-quit" class="btn btn-danger">タイトルに戻る</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- 画面効果：アイリスアウト／フラッシュ -->
+    <canvas id="cv-fx" class="fx-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="hud-coins"><span class="hud-ico">◉</span><b>0</b></div>
+    </div>
+
+    <!-- タイトル -->
+    <div id="title-layer">
+      <div id="title-win">
+        <div class="t-sub">鼻くそを取って遊ぼう！</div>
+        <h1 class="t-main">ホジリヌス</h1>
+        <div class="t-tap">タップしてはじめる</div>
+        <div class="t-note">子供心を忘れた、全ての大人たちへ。</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="rotate-note">画面を縦にしてください</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
