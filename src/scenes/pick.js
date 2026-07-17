@@ -26,6 +26,11 @@ import { RARITY_COLOR, RARITY_STARS } from '../data/boogers.js';
 const N = CFG.nose;
 const SKIN = '#e8a882', SKIN_D = '#c2795a', SKIN_L = '#f6c9a8';
 
+// 穴の中の暗さ。1.0 にすると指が完全に消える。
+// 消し切る手前で止めてあるのは、輪郭がうっすら残ったほうが
+// 「奥に入っている」ように見えて、ただの切り抜きに見えないため。
+const HOLE_DARK = 0.94;
+
 export const pickScene = {
   name: 'pick',
   locked: false,
@@ -335,9 +340,11 @@ function drawNose(ctx) {
   ctx.beginPath(); addHoles(ctx, 5);
   ctx.fillStyle = 'rgba(150,72,58,.55)'; ctx.fill();
 
+  // 穴そのものも深くする。ここが明るいと、上から被せる暗幕がいくら濃くても
+  // 指のシルエットが浮いてしまう
   ctx.beginPath(); addHoles(ctx, 0);
   const hg = ctx.createRadialGradient(N.cx, N.nostrilY - 8, 2, N.cx, N.nostrilY, 130);
-  hg.addColorStop(0, '#2a0a0e'); hg.addColorStop(1, '#4a1418');
+  hg.addColorStop(0, '#0d0204'); hg.addColorStop(1, '#2e0a0e');
   ctx.fillStyle = hg; ctx.fill();
 
   // てかり
@@ -373,7 +380,13 @@ function drawFingerInNose(ctx, x, y) {
   ctx.save(); noseTransform(ctx); addHoles(ctx, 0); ctx.restore();
   ctx.clip();
   drawFinger(ctx, x, y);
-  ctx.fillStyle = 'rgba(58,10,16,.72)';
+  ctx.fillStyle = `rgba(8,1,3,${HOLE_DARK})`;
+  ctx.fillRect(0, 0, W, H);
+
+  // 穴の縁の内側だけに落ちる影。指が縁をくぐって奥へ続いているように見せる
+  const eg = ctx.createRadialGradient(N.cx, N.nostrilY, 10, N.cx, N.nostrilY, 120);
+  eg.addColorStop(0, 'rgba(0,0,0,0)'); eg.addColorStop(1, 'rgba(0,0,0,.85)');
+  ctx.fillStyle = eg;
   ctx.fillRect(0, 0, W, H);
   ctx.restore();
 }
