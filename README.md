@@ -52,7 +52,15 @@
 
 ## 動かす
 
-**`index.html` をダブルクリックするだけで動く。** サーバーもビルドも要らない。
+### いちばん簡単：`hojirinus.html` 1個だけあればいい
+
+**[hojirinus.html](hojirinus.html) をダウンロードしてダブルクリックするだけ。** CSSもJSも全部この中に入っているので、他のファイルは一切要らない。フォルダごと持ち歩く必要もサーバーも要らない。
+
+> `index.html` **単体では動かない**ので注意。あれは隣に `style.css` と `src/`（またはバンドル）がある前提のファイルで、1個だけ取り出すと何も読めずに止まる。1ファイルで渡したいときは `hojirinus.html` のほう。
+
+### フォルダごと使う場合
+
+`index.html` をダブルクリックすればいい。こちらは `src/` の中身をそのまま読むので、コードをいじりながら動かすのに向く。
 
 ### なぜ2通りの読み込み方があるのか
 
@@ -61,22 +69,28 @@
 
 クラシックスクリプトはフェッチに CORS がかからないので、モジュールの読み込みに失敗したときだけ `hojirinus.bundle.js`（`src/` を1本に束ねた版）に自動で切り替える。
 
-| 開き方 | 動くもの |
-|---|---|
-| GitHub Pages / ローカルサーバー（http） | `src/` の ES Modules（本体） |
-| `index.html` をダブルクリック（file://） | `hojirinus.bundle.js`（自動で切り替わる） |
+| 開き方 | 動くもの | 必要なファイル |
+|---|---|---|
+| GitHub Pages / ローカルサーバー（http） | `src/` の ES Modules（本体） | フォルダ一式 |
+| `index.html` をダブルクリック（file://） | `hojirinus.bundle.js`（自動で切り替わる） | フォルダ一式 |
+| `hojirinus.html` をダブルクリック | 全部インライン | **これ1個だけ** |
 
 画像も音声も持っていないので、フェッチするものが他に無く、`file://` でも欠けるものはない。
 
-### バンドルを作り直す
+### ビルドし直す
 
-**`src/` を編集したら、必ず作り直すこと。** 忘れるとダブルクリック版だけ古いまま残る。
+**`src/` を編集したら、必ず実行すること。** 忘れると `hojirinus.html` とダブルクリック版だけ古いまま残る（http版は常に最新なので、そちらでは気づけない）。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
-`build.ps1` は `src/` の各モジュールを依存順に並べ、`import`/`export` だけを差し替えて `hojirinus.bundle.js` を吐く。node も python も要らない（Windows の PowerShell だけで完結する）。
+`build.ps1` が2つ吐く。node も python も要らない（Windows の PowerShell だけで完結する）。
+
+- `hojirinus.bundle.js` … `src/` を依存順に結合し、`import`/`export` を差し替えたもの
+- `hojirinus.html` … `index.html` に CSS とバンドルを流し込んだ1ファイル版
+
+`$order` への記載漏れ、依存順の誤り、インライン化を壊す文字列は、ビルド時に例外で止まる。
 
 ---
 

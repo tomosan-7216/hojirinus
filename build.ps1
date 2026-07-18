@@ -97,7 +97,37 @@ foreach ($rel in $order) {
 
 [void]$sb.AppendLine("})();")
 
+$bundle = $sb.ToString()
 $out = Join-Path $root 'hojirinus.bundle.js'
-[System.IO.File]::WriteAllText($out, $sb.ToString(), $utf8)
+[System.IO.File]::WriteAllText($out, $bundle, $utf8)
 Write-Host ""
 Write-Host ("built {0} ({1:N0} bytes)" -f $out, (Get-Item $out).Length)
+
+# ---------------------------------------------------------------------------
+# hojirinus.html -- everything in one file.
+#
+# index.html alone is not playable: it needs style.css and a script next to it.
+# Handing in a single file (or downloading just one) has to work, so inline
+# the CSS and the bundle into one self-contained document.
+# ---------------------------------------------------------------------------
+$css = [System.IO.File]::ReadAllText((Join-Path $root 'style.css'), $utf8)
+$html = [System.IO.File]::ReadAllText((Join-Path $root 'index.html'), $utf8)
+
+# A literal </script> or </style> inside the payload would close the tag early.
+if ($bundle -match '</script') { throw 'bundle contains </script> -- would break inlining' }
+if ($css -match '</style')     { throw 'style.css contains </style> -- would break inlining' }
+
+$linkTag = '<link rel="stylesheet" href="./style.css">'
+if (-not $html.Contains($linkTag)) { throw 'stylesheet link not found in index.html' }
+$html = $html.Replace($linkTag, "<style>`r`n$css`r`n</style>")
+
+if ($html -notmatch '(?s)<!-- LOADER:BEGIN.*?LOADER:END -->') { throw 'LOADER markers not found in index.html' }
+$html = [regex]::Replace($html, '(?s)<!-- LOADER:BEGIN.*?LOADER:END -->',
+  { param($m) "<script>`r`n" + $script:bundle + "`r`n</script>" })
+
+# Retitle so the standalone file is obvious in a tab / file list.
+$html = $html.Replace('<title>ホジリヌス</title>', '<title>ホジリヌス（1ファイル版）</title>')
+
+$single = Join-Path $root 'hojirinus.html'
+[System.IO.File]::WriteAllText($single, $html, $utf8)
+Write-Host ("built {0} ({1:N0} bytes) -- self-contained, double-click to play" -f $single, (Get-Item $single).Length)

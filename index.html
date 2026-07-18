@@ -87,6 +87,7 @@
 
 <div id="rotate-note">画面を縦にしてください</div>
 
+<!-- LOADER:BEGIN  build.ps1 が、この区間を丸ごとバンドル本体に差し替えて hojirinus.html を作る -->
 <script>
 // このファイルをダブルクリックで開くと（file://）、Chrome は下の
 // <script type="module"> を CORS で拒否する。モジュールは origin 'null' から
@@ -108,5 +109,6 @@ function __hojirinusFallback() {
 // 読み込みに成功していればこの時点で window.__hojiri が生えている。
 window.addEventListener('load', function () { setTimeout(__hojirinusFallback, 60); });
 </script>
+<!-- LOADER:END -->
 </body>
 </html>
