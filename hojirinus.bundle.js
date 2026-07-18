@@ -1884,6 +1884,8 @@
     let sel = null;
     let angle = 45, angleLocked = false, lockedAngle = 45, waitRelease = false;
     let gauge = 0, over = 0, charging = false, prevDown = false;
+    // 選択の押し始めが select の中だったか。着地画面を閉じた指での誤選択を防ぐ
+    let pressInSelect = false;
     let stutter = 0;
     
     // 飛行（メートル単位。y は上が正）
@@ -2019,6 +2021,9 @@
       state = 'select'; t = 0; sel = null;
       angleLocked = false; waitRelease = false; charging = false;
       gauge = 0; over = 0;
+      // 指が触れたまま select に戻ることがある（着地画面をタップで閉じた直後）。
+      // ここで落としておかないと、その指を離した瞬間に鼻くそが選ばれる
+      pressInSelect = false;
       flyScene.locked = false;
       chargeStop();
     }
@@ -2043,7 +2048,12 @@
     
       if (state === 'select') {
         flyScene.locked = false;
-        if (justUp) {
+        // 押し始めが select の中でなければ選ばない。
+        // 着地画面をタップで閉じると、その指を離した瞬間に真下のセルが
+        // 選ばれてしまい、望んでいない鼻くそが飛んでいく事故が起きていた。
+        if (justDown) pressInSelect = true;
+        if (justUp && pressInSelect) {
+          pressInSelect = false;
           const list = owned();
           for (let i = 0; i < list.length; i++) {
             const [x, y, w, h] = cellRect(i);
