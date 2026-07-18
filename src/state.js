@@ -76,12 +76,13 @@ export function gain(entry) {
   S.stock[entry.id] = stockOf(entry.id) + 1; // 在庫：実体が1つ増える
   S.stats.picks++; session.picks++;
 
-  let coin = CFG.coinPick[entry.rarity];
-  if (isNew) coin += CFG.coinFirst[entry.rarity];
+  // 図鑑ボーナスは「集めた結果」なので、初回ボーナスにも掛ける。
+  // ここで seen を先に push しているため、今引いた1体ぶんも倍率に乗る
+  let coin = Math.floor((CFG.coinPick[entry.rarity] + (isNew ? CFG.coinFirst[entry.rarity] : 0)) * dexMul());
 
   // 四神がこの1体で揃った瞬間だけ true。seen は永久なので、二度と発火しない
   const godComplete = godsBefore === GODS.length - 1 && seenGods() === GODS.length;
-  if (godComplete) coin += CFG.coinGodSet;
+  if (godComplete) coin += CFG.coinGodSet;   // 一時金は倍率の対象外（額が大きすぎる）
 
   addCoins(coin);
   save();
@@ -129,6 +130,17 @@ export const pickPower  = () => upRate('pick');
 
 /** ゲージ満タンに必要な、指を動かす総量（論理px）。ほじりスピードで減る */
 export const digNeed = () => CFG.digDist / (1 + upRate('dig'));
+
+/**
+ * 図鑑ボーナス。集めた種類数がそのままコイン倍率になる（最大2.0倍）。
+ * 買うものではなく、集めた結果として付いてくる。
+ */
+export function dexMul() {
+  return 1
+    + (seenNormal() / NORMAL.length) * CFG.dexMulMax
+    + (godSetDone() ? CFG.dexMulGods : 0)
+    + seenSecrets() * CFG.dexMulSecret;
+}
 export const playerPower = () => CFG.basePower * (1 + upRate('power'));
 export const speedMul   = () => 1 + upRate('speed');
 

@@ -7,7 +7,7 @@
 
 import { BOOGERS, NORMAL, SECRETS, GODS, RARITY_COLOR, RARITY_LABEL } from '../data/boogers.js';
 import { drawBooger, drawSilhouette } from '../core/shape.js';
-import { S, hasSeen, stockOf, seenNormal, seenSecrets } from '../state.js';
+import { S, hasSeen, stockOf, seenNormal, seenSecrets, dexMul } from '../state.js';
 import { sfxThud } from '../core/audio.js';
 
 export const collectionScene = { name: 'collection', locked: false };
@@ -76,6 +76,10 @@ function build() {
   const el = document.querySelector('#col-secret');
   el.textContent = bits.join('　');
   el.style.color = gn >= GODS.length ? '#ff7a1e' : '';
+
+  // 集めた種類がそのままコイン倍率になる。見えないと集める理由にならない
+  const dx = document.querySelector('#col-bonus');
+  if (dx) dx.innerHTML = `集めるほど稼げる　コイン <b>×${dexMul().toFixed(2)}</b>`;
 }
 
 function openDetail(b, got) {

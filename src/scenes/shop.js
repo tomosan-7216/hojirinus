@@ -13,7 +13,7 @@ import { flash, popup } from '../core/juice.js';
 import { buzz } from '../core/input.js';
 import {
   S, costOf, canBuy, buy, upRate, upLevel, milestone,
-  simDist, powerRatio, digNeed,
+  simDist, powerRatio, digNeed, dexMul,
 } from '../state.js';
 
 export const shopScene = { name: 'shop', locked: false };
@@ -140,6 +140,14 @@ function refresh() {
   }
 
   document.querySelector('#shop-coins').textContent = fmt(S.coins);
+
+  // 一番飛ぶサイズで1投いくらになるか。強化の効き目が金額で見えるようにする
+  const bestD = Math.max(...SIZES.map(simDist));
+  const el = document.querySelector('#sim-income');
+  if (el) {
+    el.innerHTML = `いま一番飛ぶやつで1投 <b>◉${fmt(Math.floor(bestD * CFG.coinPerM * dexMul()))}</b>`
+      + `<span class="sim-sub">（図鑑ボーナス ×${dexMul().toFixed(2)} 込み・自己ベスト更新でさらに2倍）</span>`;
+  }
 }
 
 shopScene.update = function () {};

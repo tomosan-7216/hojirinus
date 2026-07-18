@@ -19,7 +19,7 @@ import {
 } from '../core/audio.js';
 import {
   S, stockOf, consume, addCoins, launchV, distanceOf,
-  powerRatio, updateRecord, milestone,
+  powerRatio, updateRecord, milestone, dexMul,
 } from '../state.js';
 import { BOOGERS, RARITY_COLOR, RARITY_LABEL } from '../data/boogers.js';
 
@@ -325,7 +325,7 @@ function land() {
   sfxSplat(); shake(10, .3); buzz(24);
   burst(W * .32, GROUND_Y, sel.color, 18, 260);
 
-  gotCoin = Math.floor(dist * CFG.coinPerM);
+  gotCoin = Math.floor(dist * CFG.coinPerM * dexMul());
   const best = updateRecord(sel.size, dist);
   if (best) gotCoin *= CFG.bestMul;
   addCoins(gotCoin);

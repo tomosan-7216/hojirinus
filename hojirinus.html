@@ -233,7 +233,24 @@ html, body {
 .sim-row .s-d { font-weight:900; color:var(--good); }
 .sim-row.locked .s-d { color:var(--bad); font-size:22px; font-weight:800; }
 
+/* 強化の効き目を金額で見せる。飛距離だけだと「で、いくら儲かるの」が分からない */
+.sim-income {
+  margin-top:16px; padding-top:14px; border-top:2px dashed var(--line-2);
+  font-size:22px; font-weight:700; color:var(--ink-2); text-align:center;
+}
+.sim-income b { font-size:30px; font-weight:900; color:var(--gold-dk); font-variant-numeric:tabular-nums; }
+.sim-income .sim-sub { display:block; margin-top:6px; font-size:18px; font-weight:600; color:var(--ink-2); opacity:.85; }
+
 /* ---------- コレクション ---------- */
+/* 図鑑ボーナス。集めた種類がそのままコイン倍率になることを常時見せる */
+.dex-bonus {
+  margin:-10px 0 20px; padding:12px 16px;
+  border:2px dashed var(--line-2); border-radius:14px;
+  background:rgba(255,255,255,.45);
+  font-size:23px; font-weight:700; color:var(--ink-2); text-align:center;
+}
+.dex-bonus b { font-size:30px; font-weight:900; color:var(--gold-dk); font-variant-numeric:tabular-nums; }
+
 #col-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
 .col-cell {
   position:relative; aspect-ratio:1;
@@ -345,6 +362,7 @@ html, body {
           <div class="sim">
             <div class="sim-title">いまの想定飛距離（45°・満タン）</div>
             <div id="sim-list"></div>
+            <div id="sim-income" class="sim-income"></div>
           </div>
           <p class="hint">ボタンは長押しで連続購入できる</p>
         </div>
@@ -364,6 +382,7 @@ html, body {
             <span id="col-count">0 / 0</span>
             <span id="col-secret"></span>
           </div>
+          <div id="col-bonus" class="dex-bonus"></div>
           <div id="col-grid"></div>
         </div>
         <div class="edge-hint edge-hint-l">← 鼻へ</div>
@@ -485,6 +504,15 @@ html, body {
       coinPick:  { N: 2,  R: 6,  SR: 20,  UR: 70,  GOD: 150,  SECRET: 200  },
       coinFirst: { N: 30, R: 80, SR: 250, UR: 800, GOD: 1500, SECRET: 2000 },
       coinGodSet: 30000,      // 四神コンプ時の一時金。強化が一段飛ぶくらいの額にする
+    
+      // 図鑑ボーナス：集めた種類数がそのままコイン倍率になる。
+      // 図鑑は初回ボーナスを取ったら経済的な役目が終わっていて、39種まで広げたのに
+      // もったいなかった。集める行為がそのまま稼ぎに効くようにして、
+      // 「ほじる→集める」と「飛ばす→強化」の両輪を噛み合わせる。
+      // 最大 1 + 0.6 + 0.2 + 0.2 = 2.0倍。
+      dexMulMax:    0.6,      // 通常枠をコンプで +60%
+      dexMulGods:   0.2,      // 四神コンプで +20%
+      dexMulSecret: 0.1,      // シークレット1体につき +10%
       // ゴールも競争相手も無いゲームなので、渋くする理由がない。
       // 面白いのはほじりと飛ばしであって、貯金ではない。
       coinPerM:  2.5,
@@ -493,8 +521,16 @@ html, body {
       // ── 強化 ─────────────────────────────────
       // 伝説の充足率1.0には power を約400回。1.045 だと400回目が10億コインになって到達不能なので、
       // 伸びを緩くして「買い続けられる」曲線にする。
+      //
+      // 1.012 だと、100回ぶんのコストが常に3.30倍で増えるのに対し、収入の伸びは
+      // 3.24 → 2.42 → 2.04 → 1.82 → 1.36倍 と減衰する（飛距離は v² で伸びるが、
+      // effBonus が上限で頭打ちになると多項式的にしか伸びない）。指数 vs 多項式なので
+      // 必ず発散し、100回強化するのに必要な投数が 163 → 226 → 364 → 659 と膨らんでいた。
+      // 1.008 にすると最後まで80〜130投でほぼ一定になる。
+      // ここはコイン倍率をいくら足しても直らない（線形の倍率では指数に勝てない）ので、
+      // 曲線そのものを寝かせるのが正解。
       upStep:   0.005,        // 1回で +0.5%
-      upGrowth: 1.012,
+      upGrowth: 1.008,
       ups: {
         pick:  { base: 50, name: '鼻ほじり力',     desc: 'レア鼻くそ・デカい鼻くそが出やすくなる' },
         dig:   { base: 45, name: 'ほじりスピード',   desc: '少ないグリグリでゲージが溜まる。指が疲れなくなる' },
@@ -1401,12 +1437,13 @@ html, body {
       S.stock[entry.id] = stockOf(entry.id) + 1; // 在庫：実体が1つ増える
       S.stats.picks++; session.picks++;
     
-      let coin = CFG.coinPick[entry.rarity];
-      if (isNew) coin += CFG.coinFirst[entry.rarity];
+      // 図鑑ボーナスは「集めた結果」なので、初回ボーナスにも掛ける。
+      // ここで seen を先に push しているため、今引いた1体ぶんも倍率に乗る
+      let coin = Math.floor((CFG.coinPick[entry.rarity] + (isNew ? CFG.coinFirst[entry.rarity] : 0)) * dexMul());
     
       // 四神がこの1体で揃った瞬間だけ true。seen は永久なので、二度と発火しない
       const godComplete = godsBefore === GODS.length - 1 && seenGods() === GODS.length;
-      if (godComplete) coin += CFG.coinGodSet;
+      if (godComplete) coin += CFG.coinGodSet;   // 一時金は倍率の対象外（額が大きすぎる）
     
       addCoins(coin);
       save();
@@ -1454,6 +1491,17 @@ html, body {
     
     /** ゲージ満タンに必要な、指を動かす総量（論理px）。ほじりスピードで減る */
     const digNeed = () => CFG.digDist / (1 + upRate('dig'));
+    
+    /**
+     * 図鑑ボーナス。集めた種類数がそのままコイン倍率になる（最大2.0倍）。
+     * 買うものではなく、集めた結果として付いてくる。
+     */
+    function dexMul() {
+      return 1
+        + (seenNormal() / NORMAL.length) * CFG.dexMulMax
+        + (godSetDone() ? CFG.dexMulGods : 0)
+        + seenSecrets() * CFG.dexMulSecret;
+    }
     const playerPower = () => CFG.basePower * (1 + upRate('power'));
     const speedMul   = () => 1 + upRate('speed');
     
@@ -1505,7 +1553,7 @@ html, body {
       return weightedPick(pool, b => (b.w ?? 1) * (1 + p * CFG.sizeBias[b.size]));
     }
     
-    return { addCoins, buy, canBuy, consume, costOf, digNeed, distanceOf, effBonus, gain, godSetDone, hasSeen, launchV, load, milestone, pickPower, playerPower, powerRatio, roll, S, save, seenGods, seenNormal, seenSecrets, session, simDist, speedMul, stockOf, totalStock, updateRecord, upLevel, upRate, wipe };
+    return { addCoins, buy, canBuy, consume, costOf, dexMul, digNeed, distanceOf, effBonus, gain, godSetDone, hasSeen, launchV, load, milestone, pickPower, playerPower, powerRatio, roll, S, save, seenGods, seenNormal, seenSecrets, session, simDist, speedMul, stockOf, totalStock, updateRecord, upLevel, upRate, wipe };
   });
 
   // ---------- src/scenes/pick.js ----------
@@ -2283,7 +2331,7 @@ html, body {
     var { drawBooger } = __req('shape');
     var { shake, hitstop, flash, popup, burst } = __req('juice');
     var { chargeStart, chargeSet, chargeStop, sfxLaunch, sfxSplat, sfxCoin, sfxFanfare, sfxThud, } = __req('audio');
-    var { S, stockOf, consume, addCoins, launchV, distanceOf, powerRatio, updateRecord, milestone, } = __req('state');
+    var { S, stockOf, consume, addCoins, launchV, distanceOf, powerRatio, updateRecord, milestone, dexMul, } = __req('state');
     var { BOOGERS, RARITY_COLOR, RARITY_LABEL } = __req('boogers');
     
     const flyScene = { name: 'fly', locked: false, cv: null, ctx: null };
@@ -2588,7 +2636,7 @@ html, body {
       sfxSplat(); shake(10, .3); buzz(24);
       burst(W * .32, GROUND_Y, sel.color, 18, 260);
     
-      gotCoin = Math.floor(dist * CFG.coinPerM);
+      gotCoin = Math.floor(dist * CFG.coinPerM * dexMul());
       const best = updateRecord(sel.size, dist);
       if (best) gotCoin *= CFG.bestMul;
       addCoins(gotCoin);
@@ -3133,7 +3181,7 @@ html, body {
     var { sfxBuy, sfxMilestone } = __req('audio');
     var { flash, popup } = __req('juice');
     var { buzz } = __req('input');
-    var { S, costOf, canBuy, buy, upRate, upLevel, milestone, simDist, powerRatio, digNeed, } = __req('state');
+    var { S, costOf, canBuy, buy, upRate, upLevel, milestone, simDist, powerRatio, digNeed, dexMul, } = __req('state');
     
     const shopScene = { name: 'shop', locked: false };
     
@@ -3259,6 +3307,14 @@ html, body {
       }
     
       document.querySelector('#shop-coins').textContent = fmt(S.coins);
+    
+      // 一番飛ぶサイズで1投いくらになるか。強化の効き目が金額で見えるようにする
+      const bestD = Math.max(...SIZES.map(simDist));
+      const el = document.querySelector('#sim-income');
+      if (el) {
+        el.innerHTML = `いま一番飛ぶやつで1投 <b>◉${fmt(Math.floor(bestD * CFG.coinPerM * dexMul()))}</b>`
+          + `<span class="sim-sub">（図鑑ボーナス ×${dexMul().toFixed(2)} 込み・自己ベスト更新でさらに2倍）</span>`;
+      }
     }
     
     shopScene.update = function () {};
@@ -3278,7 +3334,7 @@ html, body {
     
     var { BOOGERS, NORMAL, SECRETS, GODS, RARITY_COLOR, RARITY_LABEL } = __req('boogers');
     var { drawBooger, drawSilhouette } = __req('shape');
-    var { S, hasSeen, stockOf, seenNormal, seenSecrets } = __req('state');
+    var { S, hasSeen, stockOf, seenNormal, seenSecrets, dexMul } = __req('state');
     var { sfxThud } = __req('audio');
     
     const collectionScene = { name: 'collection', locked: false };
@@ -3347,6 +3403,10 @@ html, body {
       const el = document.querySelector('#col-secret');
       el.textContent = bits.join('　');
       el.style.color = gn >= GODS.length ? '#ff7a1e' : '';
+    
+      // 集めた種類がそのままコイン倍率になる。見えないと集める理由にならない
+      const dx = document.querySelector('#col-bonus');
+      if (dx) dx.innerHTML = `集めるほど稼げる　コイン <b>×${dexMul().toFixed(2)}</b>`;
     }
     
     function openDetail(b, got) {
