@@ -2909,6 +2909,25 @@
         el.innerHTML = `<i class="et-fill"></i><span class="et-in"><span class="et-arrow">${e.arrow}</span><span class="et-label"></span></span>`;
         root.appendChild(el);
         tabs[e.key] = { el, label: el.querySelector('.et-label') };
+    
+        // タブそのものを押しても飛べるようにする。
+        // 端まで指を運ぶ／留まる、を待たずに済むので、行き先が分かっている人には速い。
+        // pointerdown で拾うのは、タップの手応えを即返すため。
+        el.addEventListener('pointerdown', ev => {
+          const cur = SCENES[active];
+          const to = cur[e.key];
+          if (!to || cur.s.locked || !started || slideT < 1) return;
+          // #stage まで伝えない。伝えるとシーン側が「画面を押した」と受け取り、
+          // 飛ばしシーンの角度決めなどを巻き込んで発火してしまう
+          ev.stopPropagation();
+          ev.preventDefault();
+          el.classList.add('press');
+          peekX = peekY = 0;
+          go(to);              // go() の中で armed=false になるので、滞在判定と二重に発火しない
+        });
+        for (const evt of ['pointerup', 'pointercancel', 'pointerleave']) {
+          el.addEventListener(evt, () => el.classList.remove('press'));
+        }
       }
     }
     

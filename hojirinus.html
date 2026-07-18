@@ -120,8 +120,11 @@ html, body {
   overflow:hidden;
   white-space:nowrap;
 }
-.edge-tab.show { opacity:.62; }
+/* 表示中のタブだけ触れるようにする。
+   非表示（アクション中）は pointer-events も切れるので、誤爆しない */
+.edge-tab.show { opacity:.62; pointer-events:auto; cursor:pointer; touch-action:manipulation; }
 .edge-tab.hot  { opacity:1; border-color:var(--gold); transform:scale(1.08); }
+.edge-tab.press { opacity:1; filter:brightness(1.15); }
 
 /* 押し込み量。--p が 1 になった瞬間に遷移が確定する */
 .edge-tab .et-fill {
@@ -3315,6 +3318,25 @@ html, body {
         el.innerHTML = `<i class="et-fill"></i><span class="et-in"><span class="et-arrow">${e.arrow}</span><span class="et-label"></span></span>`;
         root.appendChild(el);
         tabs[e.key] = { el, label: el.querySelector('.et-label') };
+    
+        // タブそのものを押しても飛べるようにする。
+        // 端まで指を運ぶ／留まる、を待たずに済むので、行き先が分かっている人には速い。
+        // pointerdown で拾うのは、タップの手応えを即返すため。
+        el.addEventListener('pointerdown', ev => {
+          const cur = SCENES[active];
+          const to = cur[e.key];
+          if (!to || cur.s.locked || !started || slideT < 1) return;
+          // #stage まで伝えない。伝えるとシーン側が「画面を押した」と受け取り、
+          // 飛ばしシーンの角度決めなどを巻き込んで発火してしまう
+          ev.stopPropagation();
+          ev.preventDefault();
+          el.classList.add('press');
+          peekX = peekY = 0;
+          go(to);              // go() の中で armed=false になるので、滞在判定と二重に発火しない
+        });
+        for (const evt of ['pointerup', 'pointercancel', 'pointerleave']) {
+          el.addEventListener(evt, () => el.classList.remove('press'));
+        }
       }
     }
     

@@ -112,8 +112,11 @@ html, body {
   overflow:hidden;
   white-space:nowrap;
 }
-.edge-tab.show { opacity:.62; }
+/* 表示中のタブだけ触れるようにする。
+   非表示（アクション中）は pointer-events も切れるので、誤爆しない */
+.edge-tab.show { opacity:.62; pointer-events:auto; cursor:pointer; touch-action:manipulation; }
 .edge-tab.hot  { opacity:1; border-color:var(--gold); transform:scale(1.08); }
+.edge-tab.press { opacity:1; filter:brightness(1.15); }
 
 /* 押し込み量。--p が 1 になった瞬間に遷移が確定する */
 .edge-tab .et-fill {
