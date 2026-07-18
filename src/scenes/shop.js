@@ -13,12 +13,14 @@ import { flash, popup } from '../core/juice.js';
 import { buzz } from '../core/input.js';
 import {
   S, costOf, canBuy, buy, upRate, upLevel, milestone,
-  simDist, powerRatio,
+  simDist, powerRatio, digNeed,
 } from '../state.js';
 
 export const shopScene = { name: 'shop', locked: false };
 
-const KEYS = ['pick', 'power', 'speed'];
+// CFG.ups の定義順をそのまま使う。ここに書き忘れて新ステータスが
+// ショップに出ない（＝買えない）のを防ぐ
+const KEYS = Object.keys(CFG.ups);
 let cards = {};
 
 shopScene.init = function () {
@@ -110,6 +112,11 @@ function refresh() {
     // バーは 10% きざみで一周する。0.5%でも「バーは動く」
     c.bar.style.width = `${((rate % CFG.milestoneStep) / CFG.milestoneStep) * 100}%`;
     c.ms.textContent = ms > 0 ? `★ ${ms * 10}% 到達（Lv.${upLevel(k)}）` : `Lv.${upLevel(k)}`;
+    // ほじりスピードだけは％では効きが分からないので、実際に要るグリグリ量を出す。
+    // 数字が減っていくのが見えれば「指が楽になった」と分かる
+    if (k === 'dig') {
+      c.ms.textContent += `　必要グリグリ量 ${Math.round(digNeed())}`;
+    }
     const cost = costOf(k);
     c.cost.textContent = fmt(cost);
     const ok = canBuy(k);

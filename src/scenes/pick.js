@@ -20,7 +20,7 @@ import {
   sfxPon, sfxWhiff, grindStart, grindSet, grindStop,
   sfxFanfare, sfxStar, sfxCoin,
 } from '../core/audio.js';
-import { roll, gain, milestone, S } from '../state.js';
+import { roll, gain, milestone, digNeed, upRate, S } from '../state.js';
 import { RARITY_COLOR, RARITY_STARS } from '../data/boogers.js';
 
 const N = CFG.nose;
@@ -60,6 +60,9 @@ pickScene.init = function () {
 
 pickScene.enter = function () { state = 'idle'; gauge = 0; irisOff(); };
 pickScene.exit  = function () { if (state === 'picking') abort(); };
+
+/** コンソールから中を覗くための読み取り専用アクセサ */
+pickScene.debug = () => ({ state, gauge, grindV, grindAmt, need: digNeed() });
 
 function abort() {
   grindStop();
@@ -112,14 +115,18 @@ pickScene.update = function (dt, isActive) {
   }
 
   else if (state === 'picking') {
-    // ゲージはグリグリと無関係に一定速度で溜まる
-    gauge = clamp(gauge + dt / CFG.gaugeTime, 0, 1);
+    // 動かした量でゲージが溜まる。止めれば進まない。
+    // 1フレームあたりの上限を設けているのは、フレーム落ちで一気に稼げてしまうのと、
+    // 画面外まで指を振り回すだけの攻略を潰すため。
+    const mv = Math.min(Math.hypot(Input.dx, Input.dy), CFG.digCapPerSec * dt);
+    const moving = mv >= CFG.digMoveMin;
+    const assist = moving ? CFG.digAssist * (1 + upRate('dig')) * dt : 0;
+    gauge = clamp(gauge + mv / digNeed() + assist, 0, 1);
 
-    // グリグリ量を測る（演出にだけ使う）
-    const mv = Math.hypot(Input.dx, Input.dy);
+    // グリグリの勢い（演出用）。ゲージそのものではなく「今どれだけ激しいか」
     grindV = lerp(grindV, clamp(mv / 14, 0, 1), .3);
     grindAcc += grindV * dt;
-    grindAmt = clamp(grindAcc / (CFG.gaugeTime * .5), 0, 1);
+    grindAmt = clamp(grindAcc / 1.25, 0, 1);
     grindSet(grindV);
 
     // 勢いをつけてほじると画面が揺れる
@@ -365,6 +372,11 @@ function drawNose(ctx) {
  * クリップ用の穴のパスは、鼻と同じ変換をかけてから積む必要がある（指は鼻と一緒に動かないため）。
  */
 function drawFingerInNose(ctx, x, y) {
+  // 穴に入れる前は、指を鼻より手前にそのまま描く。
+  // 常に沈めていると、狙っている最中に指先が穴に吸い込まれて消え、
+  // どこを指しているのか分からなくなる。沈めるのは実際にほじり始めてから。
+  if (state !== 'picking') { drawFinger(ctx, x, y); return; }
+
   // 穴の外側：普通に描く
   ctx.save();
   ctx.beginPath();
@@ -470,6 +482,30 @@ function drawGauge(ctx) {
     ctx.fillStyle = '#ffd54a';
     ctx.fillText('はなせ！', 0, 0);
     ctx.restore();
+  } else if (state === 'picking') {
+    // 動かさないと溜まらないので、何をすればいいかを毎回言い切る。
+    // 手を止めているときほど強く跳ねさせて、「動かせ」を体で分からせる。
+    ctx.save();
+    ctx.textAlign = 'center';
+    const idle = 1 - grindV;                       // 止まっているほど 1 に近い
+    const beat = 1 + Math.sin(anim * (9 + idle * 9)) * (.05 + idle * .09);
+    ctx.translate(cx, 990); ctx.scale(beat, beat);
+    ctx.font = '900 46px system-ui, sans-serif';
+    ctx.lineWidth = 8; ctx.lineJoin = 'round'; ctx.strokeStyle = '#000';
+    ctx.strokeText('ほじれ！', 0, 0);
+    ctx.fillStyle = grindV > .25 ? '#ffe45e' : '#ff7a4a';   // 止まると赤く警告
+    ctx.fillText('ほじれ！', 0, 0);
+    ctx.restore();
+
+    if (grindV < .12) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = .5 + Math.sin(anim * 5) * .35;
+      ctx.font = '700 24px system-ui, sans-serif';
+      ctx.fillStyle = '#ff7a4a';
+      ctx.fillText('指を動かさないと溜まらない', cx, 1032);
+      ctx.restore();
+    }
   }
 }
 
@@ -562,10 +598,10 @@ pickScene.render = function () {
     ctx.textAlign = 'center';
     ctx.font = '700 26px system-ui, sans-serif';
     ctx.fillStyle = '#123a4a';
-    ctx.fillText('鼻の穴に指を入れて、長押し', W / 2, 1000);
+    ctx.fillText('鼻の穴に指を入れて、押したまま', W / 2, 1000);
     ctx.font = '600 21px system-ui, sans-serif';
     ctx.fillStyle = '#4e7d8f';
-    ctx.fillText('押したままグリグリすると気持ちがいい', W / 2, 1036);
+    ctx.fillText('グリグリ動かすとゲージが溜まる', W / 2, 1036);
     ctx.globalAlpha = .35;
     ctx.fillText('画面のふちに寄ると となりへ', W / 2, 1090);
     ctx.restore();

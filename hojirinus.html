@@ -426,8 +426,17 @@ html, body {
     const CFG = {
     
       // ── ほじり ───────────────────────────────
-      // グリグリしてもしなくても同じ速度。企画の指定どおり、テンポを優先する。
-      gaugeTime: 2.5,
+      // 動かした量でゲージが溜まる（NIKKE のぬいぐるみ方式）。止めると進まない。
+      // 当初は「グリグリしてもしなくても同じ速度」だったが、それだと
+      // プレイヤーの入力が結果に一切影響せず、ほじる手応えが演出だけで支えられていた。
+      // 動かした量で溜めるようにして、グリグリそのものを行為として意味づける。
+      digDist: 3600,          // ゲージ満タンに必要な移動量（論理px）。ほじりスピードで減る
+      digCapPerSec: 2600,     // 1秒あたりに稼げる移動量の上限。速く振り回すだけの攻略を潰す
+      // 動かしてさえいれば最低これだけは進む（ゲージ/秒）。
+      // 移動量だけだと、ちまちま動かす人と振り回す人で7倍以上の差がついて、
+      // 控えめな人が20秒経っても溜まらない。止めればゼロなのは変わらない。
+      digAssist: 0.12,
+      digMoveMin: 1.5,        // これ未満の移動は「止まっている」とみなす（論理px/フレーム）
       whiffTime: 0.75,        // 溜まりきる前に離した時の「スカ」
     
       nose: {
@@ -479,6 +488,7 @@ html, body {
       upGrowth: 1.012,
       ups: {
         pick:  { base: 50, name: '鼻ほじり力',     desc: 'レア鼻くそ・デカい鼻くそが出やすくなる' },
+        dig:   { base: 45, name: 'ほじりスピード',   desc: '少ないグリグリでゲージが溜まる。指が疲れなくなる' },
         power: { base: 40, name: '鼻くそ飛ばしパワー', desc: '重い鼻くそを飛ばす力。デカいやつの本気が出る' },
         speed: { base: 60, name: '鼻くそ飛ばし速度',   desc: '鼻くそを遠くに飛ばす力' },
       },
@@ -1281,7 +1291,7 @@ html, body {
       seen: [],                                   // 図鑑：永久に消えない
       stock: {},                                  // 在庫：飛ばすと減る
       coins: 0,
-      ups: { pick: 0, power: 0, speed: 0 },
+      ups: { pick: 0, dig: 0, power: 0, speed: 0 },
       records: Object.fromEntries(SIZES.map(s => [s, 0])),   // サイズ別の自己ベスト
       stats: { picks: 0, flies: 0 },
     });
@@ -1302,6 +1312,12 @@ html, body {
         S.seen = (S.seen || []).filter(id => BY_ID[id]);
         for (const k of Object.keys(S.stock)) if (!BY_ID[k]) delete S.stock[k];
         for (const s of SIZES) if (typeof S.records[s] !== 'number') S.records[s] = 0;
+        // 強化キーが後から増えても壊れないようにする。
+        // Object.assign は S.ups ごと古い値で置き換えるので、新キーが欠けたまま残り、
+        // buy() の S.ups[k]++ が NaN になって強化が二度と買えなくなる
+        for (const k of Object.keys(CFG.ups)) {
+          if (typeof S.ups[k] !== 'number' || !isFinite(S.ups[k])) S.ups[k] = 0;
+        }
       } catch (e) { console.warn('save load failed', e); }
     }
     
@@ -1379,6 +1395,9 @@ html, body {
     // ── 派生ステータス ───────────────────────────────────
     
     const pickPower  = () => upRate('pick');
+    
+    /** ゲージ満タンに必要な、指を動かす総量（論理px）。ほじりスピードで減る */
+    const digNeed = () => CFG.digDist / (1 + upRate('dig'));
     const playerPower = () => CFG.basePower * (1 + upRate('power'));
     const speedMul   = () => 1 + upRate('speed');
     
@@ -1430,7 +1449,7 @@ html, body {
       return weightedPick(pool, b => (b.w ?? 1) * (1 + p * CFG.sizeBias[b.size]));
     }
     
-    return { addCoins, buy, canBuy, consume, costOf, distanceOf, effBonus, gain, hasSeen, launchV, load, milestone, pickPower, playerPower, powerRatio, roll, S, save, seenNormal, seenSecrets, session, simDist, speedMul, stockOf, totalStock, updateRecord, upLevel, upRate, wipe };
+    return { addCoins, buy, canBuy, consume, costOf, digNeed, distanceOf, effBonus, gain, hasSeen, launchV, load, milestone, pickPower, playerPower, powerRatio, roll, S, save, seenNormal, seenSecrets, session, simDist, speedMul, stockOf, totalStock, updateRecord, upLevel, upRate, wipe };
   });
 
   // ---------- src/scenes/pick.js ----------
@@ -1451,7 +1470,7 @@ html, body {
     var { drawBooger } = __req('shape');
     var { shake, hitstop, flash, popup, burst, irisOut, irisIn, irisOff, drawRays, drawStar, } = __req('juice');
     var { sfxPon, sfxWhiff, grindStart, grindSet, grindStop, sfxFanfare, sfxStar, sfxCoin, } = __req('audio');
-    var { roll, gain, milestone, S } = __req('state');
+    var { roll, gain, milestone, digNeed, upRate, S } = __req('state');
     var { RARITY_COLOR, RARITY_STARS } = __req('boogers');
     
     const N = CFG.nose;
@@ -1491,6 +1510,9 @@ html, body {
     
     pickScene.enter = function () { state = 'idle'; gauge = 0; irisOff(); };
     pickScene.exit  = function () { if (state === 'picking') abort(); };
+    
+    /** コンソールから中を覗くための読み取り専用アクセサ */
+    pickScene.debug = () => ({ state, gauge, grindV, grindAmt, need: digNeed() });
     
     function abort() {
       grindStop();
@@ -1543,14 +1565,18 @@ html, body {
       }
     
       else if (state === 'picking') {
-        // ゲージはグリグリと無関係に一定速度で溜まる
-        gauge = clamp(gauge + dt / CFG.gaugeTime, 0, 1);
+        // 動かした量でゲージが溜まる。止めれば進まない。
+        // 1フレームあたりの上限を設けているのは、フレーム落ちで一気に稼げてしまうのと、
+        // 画面外まで指を振り回すだけの攻略を潰すため。
+        const mv = Math.min(Math.hypot(Input.dx, Input.dy), CFG.digCapPerSec * dt);
+        const moving = mv >= CFG.digMoveMin;
+        const assist = moving ? CFG.digAssist * (1 + upRate('dig')) * dt : 0;
+        gauge = clamp(gauge + mv / digNeed() + assist, 0, 1);
     
-        // グリグリ量を測る（演出にだけ使う）
-        const mv = Math.hypot(Input.dx, Input.dy);
+        // グリグリの勢い（演出用）。ゲージそのものではなく「今どれだけ激しいか」
         grindV = lerp(grindV, clamp(mv / 14, 0, 1), .3);
         grindAcc += grindV * dt;
-        grindAmt = clamp(grindAcc / (CFG.gaugeTime * .5), 0, 1);
+        grindAmt = clamp(grindAcc / 1.25, 0, 1);
         grindSet(grindV);
     
         // 勢いをつけてほじると画面が揺れる
@@ -1796,6 +1822,11 @@ html, body {
      * クリップ用の穴のパスは、鼻と同じ変換をかけてから積む必要がある（指は鼻と一緒に動かないため）。
      */
     function drawFingerInNose(ctx, x, y) {
+      // 穴に入れる前は、指を鼻より手前にそのまま描く。
+      // 常に沈めていると、狙っている最中に指先が穴に吸い込まれて消え、
+      // どこを指しているのか分からなくなる。沈めるのは実際にほじり始めてから。
+      if (state !== 'picking') { drawFinger(ctx, x, y); return; }
+    
       // 穴の外側：普通に描く
       ctx.save();
       ctx.beginPath();
@@ -1901,6 +1932,30 @@ html, body {
         ctx.fillStyle = '#ffd54a';
         ctx.fillText('はなせ！', 0, 0);
         ctx.restore();
+      } else if (state === 'picking') {
+        // 動かさないと溜まらないので、何をすればいいかを毎回言い切る。
+        // 手を止めているときほど強く跳ねさせて、「動かせ」を体で分からせる。
+        ctx.save();
+        ctx.textAlign = 'center';
+        const idle = 1 - grindV;                       // 止まっているほど 1 に近い
+        const beat = 1 + Math.sin(anim * (9 + idle * 9)) * (.05 + idle * .09);
+        ctx.translate(cx, 990); ctx.scale(beat, beat);
+        ctx.font = '900 46px system-ui, sans-serif';
+        ctx.lineWidth = 8; ctx.lineJoin = 'round'; ctx.strokeStyle = '#000';
+        ctx.strokeText('ほじれ！', 0, 0);
+        ctx.fillStyle = grindV > .25 ? '#ffe45e' : '#ff7a4a';   // 止まると赤く警告
+        ctx.fillText('ほじれ！', 0, 0);
+        ctx.restore();
+    
+        if (grindV < .12) {
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.globalAlpha = .5 + Math.sin(anim * 5) * .35;
+          ctx.font = '700 24px system-ui, sans-serif';
+          ctx.fillStyle = '#ff7a4a';
+          ctx.fillText('指を動かさないと溜まらない', cx, 1032);
+          ctx.restore();
+        }
       }
     }
     
@@ -1993,10 +2048,10 @@ html, body {
         ctx.textAlign = 'center';
         ctx.font = '700 26px system-ui, sans-serif';
         ctx.fillStyle = '#123a4a';
-        ctx.fillText('鼻の穴に指を入れて、長押し', W / 2, 1000);
+        ctx.fillText('鼻の穴に指を入れて、押したまま', W / 2, 1000);
         ctx.font = '600 21px system-ui, sans-serif';
         ctx.fillStyle = '#4e7d8f';
-        ctx.fillText('押したままグリグリすると気持ちがいい', W / 2, 1036);
+        ctx.fillText('グリグリ動かすとゲージが溜まる', W / 2, 1036);
         ctx.globalAlpha = .35;
         ctx.fillText('画面のふちに寄ると となりへ', W / 2, 1090);
         ctx.restore();
@@ -2863,11 +2918,13 @@ html, body {
     var { sfxBuy, sfxMilestone } = __req('audio');
     var { flash, popup } = __req('juice');
     var { buzz } = __req('input');
-    var { S, costOf, canBuy, buy, upRate, upLevel, milestone, simDist, powerRatio, } = __req('state');
+    var { S, costOf, canBuy, buy, upRate, upLevel, milestone, simDist, powerRatio, digNeed, } = __req('state');
     
     const shopScene = { name: 'shop', locked: false };
     
-    const KEYS = ['pick', 'power', 'speed'];
+    // CFG.ups の定義順をそのまま使う。ここに書き忘れて新ステータスが
+    // ショップに出ない（＝買えない）のを防ぐ
+    const KEYS = Object.keys(CFG.ups);
     let cards = {};
     
     shopScene.init = function () {
@@ -2959,6 +3016,11 @@ html, body {
         // バーは 10% きざみで一周する。0.5%でも「バーは動く」
         c.bar.style.width = `${((rate % CFG.milestoneStep) / CFG.milestoneStep) * 100}%`;
         c.ms.textContent = ms > 0 ? `★ ${ms * 10}% 到達（Lv.${upLevel(k)}）` : `Lv.${upLevel(k)}`;
+        // ほじりスピードだけは％では効きが分からないので、実際に要るグリグリ量を出す。
+        // 数字が減っていくのが見えれば「指が楽になった」と分かる
+        if (k === 'dig') {
+          c.ms.textContent += `　必要グリグリ量 ${Math.round(digNeed())}`;
+        }
         const cost = costOf(k);
         c.cost.textContent = fmt(cost);
         const ok = canBuy(k);

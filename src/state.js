@@ -14,7 +14,7 @@ const fresh = () => ({
   seen: [],                                   // 図鑑：永久に消えない
   stock: {},                                  // 在庫：飛ばすと減る
   coins: 0,
-  ups: { pick: 0, power: 0, speed: 0 },
+  ups: { pick: 0, dig: 0, power: 0, speed: 0 },
   records: Object.fromEntries(SIZES.map(s => [s, 0])),   // サイズ別の自己ベスト
   stats: { picks: 0, flies: 0 },
 });
@@ -35,6 +35,12 @@ export function load() {
     S.seen = (S.seen || []).filter(id => BY_ID[id]);
     for (const k of Object.keys(S.stock)) if (!BY_ID[k]) delete S.stock[k];
     for (const s of SIZES) if (typeof S.records[s] !== 'number') S.records[s] = 0;
+    // 強化キーが後から増えても壊れないようにする。
+    // Object.assign は S.ups ごと古い値で置き換えるので、新キーが欠けたまま残り、
+    // buy() の S.ups[k]++ が NaN になって強化が二度と買えなくなる
+    for (const k of Object.keys(CFG.ups)) {
+      if (typeof S.ups[k] !== 'number' || !isFinite(S.ups[k])) S.ups[k] = 0;
+    }
   } catch (e) { console.warn('save load failed', e); }
 }
 
@@ -112,6 +118,9 @@ export function buy(k) {
 // ── 派生ステータス ───────────────────────────────────
 
 export const pickPower  = () => upRate('pick');
+
+/** ゲージ満タンに必要な、指を動かす総量（論理px）。ほじりスピードで減る */
+export const digNeed = () => CFG.digDist / (1 + upRate('dig'));
 export const playerPower = () => CFG.basePower * (1 + upRate('power'));
 export const speedMul   = () => 1 + upRate('speed');
 
