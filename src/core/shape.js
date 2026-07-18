@@ -78,6 +78,10 @@ function shade(hex, amt) {
 
 /** 鼻くそ本体を描く */
 export function drawBooger(ctx, entry, x, y, r, rot = 0, squash = 1) {
+  // 半径が負だと createRadialGradient が IndexSizeError を投げてループごと止まる。
+  // easeOutBack のような行き過ぎるイージングは開始直後に負を返すので、
+  // 呼び出し側に注意を強いるより、ここで吸収する。
+  if (!(r > 0)) return;
   const pts = boogerPoints(entry);
   ctx.save();
 

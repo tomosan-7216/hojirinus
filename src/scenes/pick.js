@@ -10,7 +10,7 @@
 
 import { W, H, CFG } from '../config.js';
 import { Input, buzz } from '../core/input.js';
-import { clamp, lerp, easeOut, easeOutBack, TAU } from '../core/util.js';
+import { clamp, lerp, easeOut, easeOutBack, TAU, fmt } from '../core/util.js';
 import { drawBooger } from '../core/shape.js';
 import {
   shake, hitstop, flash, popup, burst,
@@ -21,7 +21,7 @@ import {
   sfxFanfare, sfxStar, sfxCoin,
 } from '../core/audio.js';
 import { roll, gain, milestone, digNeed, upRate, S } from '../state.js';
-import { RARITY_COLOR, RARITY_STARS, RARITY_LABEL } from '../data/boogers.js';
+import { RARITY_COLOR, RARITY_STARS, RARITY_LABEL, BY_ID } from '../data/boogers.js';
 
 const N = CFG.nose;
 const SKIN = '#e8a882', SKIN_D = '#c2795a', SKIN_L = '#f6c9a8';
@@ -54,7 +54,7 @@ let anim = 0;
 let prevDown = false;
 
 // リビール
-let entry = null, isNew = false, gotCoin = 0;
+let entry = null, isNew = false, gotCoin = 0, godComplete = false;
 let bx = 0, by = 0, bvx = 0, bvy = 0, bScale = 0, bRot = 0;
 let starN = 0, starShown = 0;
 
@@ -164,13 +164,17 @@ pickScene.update = function (dt, isActive) {
   else if (state === 'reveal') {
     updateReveal(dt);
   }
+
+  else if (state === 'godfest') {
+    updateGodFest(dt);
+  }
 };
 
 /** 溜まりきってから離した。抽選して出す */
 function release() {
   entry = roll();
   const r = gain(entry);
-  isNew = r.isNew; gotCoin = r.coin;
+  isNew = r.isNew; gotCoin = r.coin; godComplete = r.godComplete;
 
   // グリグリしたぶんだけ、抜ける音が太くなり、飛び出す勢いが増す
   sfxPon(grindAmt);
@@ -222,6 +226,7 @@ function updateReveal(dt) {
     if (t > revealDur() - .5 && t - dt <= revealDur() - .5) irisIn();
     if (t > revealDur()) {
       irisOff();
+      if (godComplete) { startGodFest(); return; }   // 4体目なら、そのまま祝いへ
       popup(W / 2, 470, `+${gotCoin}`, '#ffd97a', 44);
       sfxCoin();
       state = 'idle'; gauge = 0; pickScene.locked = false;
@@ -234,6 +239,134 @@ function updateReveal(dt) {
     bScale = clamp(t / .12, 0, 1);
     if (t > revealDur()) { state = 'idle'; gauge = 0; pickScene.locked = false; }
   }
+}
+
+// ── 四神コンプの祝い ──────────────────────────────────
+//
+// 四神は東西南北を司るので、画面の四方にそのまま配置する。
+// 上=玄武(北) 右=青龍(東) 下=朱雀(南) 左=白虎(西)。
+// 集めた4体が「意味のある並び」に収まるので、ただ4つ並べるより効く。
+const GOD_SLOT = {
+  g04: { dir: '北', x: W / 2,       y: 330  },  // 玄武
+  g01: { dir: '東', x: W / 2 + 232, y: 640  },  // 青龍
+  g02: { dir: '南', x: W / 2,       y: 950  },  // 朱雀
+  g03: { dir: '西', x: W / 2 - 232, y: 640  },  // 白虎
+};
+const GOD_ORDER = ['g04', 'g01', 'g02', 'g03'];
+const FEST_DUR = 6.0;
+let festShown = 0;
+
+function startGodFest() {
+  state = 'godfest'; t = 0; festShown = 0;
+  pickScene.locked = true;
+  irisOff();
+  flash('#fff', .7, .3);
+  shake(24, .6);
+  sfxFanfare();
+  buzz([30, 60, 30, 60, 120]);
+}
+
+function updateGodFest(dt) {
+  // 4体が0.45秒おきに1体ずつ着席する
+  const want = clamp(Math.floor((t - .35) / .45) + 1, 0, 4);
+  while (festShown < want) {
+    const b = BY_ID[GOD_ORDER[festShown]];
+    burst(GOD_SLOT[b.id].x, GOD_SLOT[b.id].y, b.color, 22, 300);
+    sfxStar(festShown);
+    shake(12, .22); hitstop(.05); buzz(24);
+    festShown++;
+  }
+  // 4体そろった瞬間に一発大きいのを入れる
+  if (t > 2.3 && t - dt <= 2.3) {
+    flash('#ffd08a', .6, .4);
+    shake(30, .7); hitstop(.14);
+    sfxFanfare(); buzz([40, 80, 40]);
+    popup(W / 2, 640, `+${fmt(CFG.coinGodSet)}`, '#ffb31f', 60);
+    sfxCoin();
+  }
+  // タップで飛ばせる。長い演出を毎回見せられるのは苦痛なので
+  if (t > FEST_DUR || (Input.down && t > 3.2)) {
+    state = 'idle'; gauge = 0; godComplete = false;
+    pickScene.locked = false;
+  }
+}
+
+function drawGodFest(ctx) {
+  const bgA = clamp(t / .4, 0, 1) * clamp((FEST_DUR - t) / .6, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = bgA;
+  ctx.fillStyle = 'rgba(8,10,26,.92)';
+  ctx.fillRect(0, 0, W, H);
+
+  // 中心から回る後光
+  drawRays(ctx, W / 2, 640, anim * .6, 900, 'rgba(255,150,40,');
+
+  // 四神を四方に
+  for (let i = 0; i < festShown; i++) {
+    const b = BY_ID[GOD_ORDER[i]];
+    const s = GOD_SLOT[b.id];
+    const k = clamp((t - .35 - i * .45) / .5, 0, 1);
+    const pop = easeOutBack(k);          // 行き過ぎてから戻る。位置には効かせて気持ちよく
+    // 中心から所定の方角へ飛んでいく
+    const x = lerp(W / 2, s.x, pop);
+    const y = lerp(640, s.y, pop);
+    // 大きさに easeOutBack をそのまま使うと、開始直後に負の半径になる
+    const r = Math.max(0.01, 74 * easeOut(k) * (1 + Math.sin(anim * 3 + i) * .04));
+
+    ctx.save();
+    ctx.globalAlpha = clamp(k * 2, 0, 1);
+    ctx.shadowColor = b.color; ctx.shadowBlur = 34;
+    drawBooger(ctx, b, x, y, r, anim * .35 + i);
+    ctx.shadowBlur = 0;
+
+    // 方角
+    ctx.textAlign = 'center';
+    ctx.font = '900 30px system-ui, sans-serif';
+    ctx.lineWidth = 6; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,.85)';
+    ctx.strokeText(s.dir, x, y - r - 16);
+    ctx.fillStyle = b.color;
+    ctx.fillText(s.dir, x, y - r - 16);
+
+    ctx.font = '800 22px system-ui, sans-serif';
+    ctx.lineWidth = 5;
+    ctx.strokeText(b.name.replace('鼻くそ', ''), x, y + r + 32);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(b.name.replace('鼻くそ', ''), x, y + r + 32);
+    ctx.restore();
+  }
+
+  // 中央のタイトル
+  if (t > 2.3) {
+    const k = clamp((t - 2.3) / .45, 0, 1);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.translate(W / 2, 620);
+    ctx.scale(easeOutBack(k), easeOutBack(k));
+    ctx.font = '900 76px system-ui, sans-serif';
+    ctx.lineWidth = 12; ctx.lineJoin = 'round'; ctx.strokeStyle = '#000';
+    ctx.strokeText('四神 制覇', 0, 0);
+    const g = ctx.createLinearGradient(-160, -40, 160, 40);
+    g.addColorStop(0, '#ffd97a'); g.addColorStop(.5, '#ff8a1e'); g.addColorStop(1, '#ffd97a');
+    ctx.fillStyle = g;
+    ctx.fillText('四神 制覇', 0, 0);
+    ctx.font = '700 24px system-ui, sans-serif';
+    ctx.lineWidth = 6;
+    ctx.strokeText('鼻の四方を守りし者、すべて出た', 0, 46);
+    ctx.fillStyle = '#cfe6f2';
+    ctx.fillText('鼻の四方を守りし者、すべて出た', 0, 46);
+    ctx.restore();
+  }
+
+  if (t > 3.2) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = (.4 + Math.sin(anim * 4) * .3) * bgA;
+    ctx.font = '700 22px system-ui, sans-serif';
+    ctx.fillStyle = '#9fd0e4';
+    ctx.fillText('タップで閉じる', W / 2, 1210);
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 function sizePx(size) {
@@ -582,8 +715,8 @@ pickScene.render = function () {
     }
   }
 
-  // 指（リビール中は引っ込める）
-  if (state !== 'reveal' || !isNew) drawFingerInNose(ctx, fx, fy);
+  // 指（リビール中と四神の祝いでは引っ込める）
+  if (state !== 'godfest' && (state !== 'reveal' || !isNew)) drawFingerInNose(ctx, fx, fy);
 
   // スカ
   if (state === 'whiff') {
@@ -602,6 +735,9 @@ pickScene.render = function () {
   }
 
   drawGauge(ctx);
+
+  // 四神の祝いは全部の上に被せる
+  if (state === 'godfest') drawGodFest(ctx);
 
   // 最初の案内
   if (state === 'idle' && S.stats.picks < 3) {

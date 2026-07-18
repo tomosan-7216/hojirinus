@@ -4,7 +4,7 @@
 // 飛ばすと stock だけが減り、seen は絶対に触らない。
 
 import { CFG, SIZES, upCost } from './config.js';
-import { BOOGERS, BY_ID, NORMAL, SECRETS } from './data/boogers.js';
+import { BOOGERS, BY_ID, NORMAL, SECRETS, GODS } from './data/boogers.js';
 import { clamp, weightedPick } from './core/util.js';
 
 const KEY = 'hojirinus.save.v1';
@@ -65,19 +65,27 @@ export const totalStock = () => Object.values(S.stock).reduce((a, b) => a + b, 0
 
 export const seenNormal  = () => NORMAL.filter(b => hasSeen(b.id)).length;
 export const seenSecrets = () => SECRETS.filter(b => hasSeen(b.id)).length;
+export const seenGods    = () => GODS.filter(b => hasSeen(b.id)).length;
+export const godSetDone  = () => seenGods() === GODS.length;
 
 /** ほじり出した。戻り値の isNew が初登場かどうか */
 export function gain(entry) {
   const isNew = !hasSeen(entry.id);
+  const godsBefore = seenGods();
   if (isNew) S.seen.push(entry.id);          // 図鑑：一度登録したら永久
   S.stock[entry.id] = stockOf(entry.id) + 1; // 在庫：実体が1つ増える
   S.stats.picks++; session.picks++;
 
   let coin = CFG.coinPick[entry.rarity];
   if (isNew) coin += CFG.coinFirst[entry.rarity];
+
+  // 四神がこの1体で揃った瞬間だけ true。seen は永久なので、二度と発火しない
+  const godComplete = godsBefore === GODS.length - 1 && seenGods() === GODS.length;
+  if (godComplete) coin += CFG.coinGodSet;
+
   addCoins(coin);
   save();
-  return { isNew, coin };
+  return { isNew, coin, godComplete };
 }
 
 /** 飛ばした。在庫だけ減る。図鑑は消えない */
