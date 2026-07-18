@@ -701,16 +701,17 @@ function drawChargeView(ctx) {
   ctx.font = '700 26px system-ui, sans-serif';
   ctx.fillStyle = '#123a4a';
   ctx.fillText(charging ? '' : '長押しで溜める', W / 2, 200);
+  // 満タンのあおり。押し続けるほど大きく速く跳ねて、離せと急かす
   if (charging && gauge >= 1) {
-    const p = 1 + Math.sin(anim * 20) * .06;
+    const heat = Math.min(over, 2.5) / 2.5;
+    const p = (1 + heat * .18) * (1 + Math.sin(anim * (20 + heat * 16)) * (.06 + heat * .05));
     ctx.save();
     ctx.translate(W / 2, 250); ctx.scale(p, p);
     ctx.font = '900 54px system-ui, sans-serif';
-    ctx.lineWidth = 9; ctx.strokeStyle = '#3fb4dd';
-    const msg = over > 1.2 ? 'まだ溜められる' : 'もっと溜めろ';
-    ctx.strokeText(msg, 0, 0);
+    ctx.lineWidth = 9; ctx.lineJoin = 'round'; ctx.strokeStyle = '#3fb4dd';
+    ctx.strokeText('今だ！', 0, 0);
     ctx.fillStyle = '#ff8a3a';
-    ctx.fillText(msg, 0, 0);
+    ctx.fillText('今だ！', 0, 0);
     ctx.restore();
   }
   ctx.font = '900 30px system-ui, sans-serif';
