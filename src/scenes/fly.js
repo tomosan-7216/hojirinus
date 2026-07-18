@@ -21,7 +21,7 @@ import {
   S, stockOf, consume, addCoins, launchV, distanceOf,
   powerRatio, updateRecord, milestone,
 } from '../state.js';
-import { BOOGERS, RARITY_COLOR } from '../data/boogers.js';
+import { BOOGERS, RARITY_COLOR, RARITY_LABEL } from '../data/boogers.js';
 
 export const flyScene = { name: 'fly', locked: false, cv: null, ctx: null };
 
@@ -787,7 +787,7 @@ function drawSelect(ctx) {
     ctx.textAlign = 'left';
     ctx.font = '900 15px system-ui, sans-serif';
     ctx.fillStyle = RARITY_COLOR[b.rarity];
-    ctx.fillText(b.rarity, x + 7, y + 20);
+    ctx.fillText(RARITY_LABEL[b.rarity], x + 7, y + 20);
 
     // パワーが足りているか。足りないと本気が出ない
     const pr = powerRatio(b.size);

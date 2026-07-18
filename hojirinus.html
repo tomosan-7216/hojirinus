@@ -424,7 +424,9 @@ html, body {
     const H = 1280;
     
     const SIZES  = ['小', '中', '大', '特大', '伝説'];
-    const RARITY = ['N', 'R', 'SR', 'UR', 'SECRET'];
+    // GOD = 四神。UR の上に置く。シークレットと違って図鑑に枠が見えるのが肝で、
+    // 「あと2体」が見えているからこそ揃えたくなる。隠したらセットの意味がない。
+    const RARITY = ['N', 'R', 'SR', 'UR', 'GOD', 'SECRET'];
     
     const CFG = {
     
@@ -453,8 +455,11 @@ html, body {
       // ── 抽選 ─────────────────────────────────
       // N の重みは据え置き、上位の重みだけ ほじり力 p で増やす。
       // 正規化の結果として N が相対的に減る。1ステータスでレア度もサイズも賄える。
-      baseW:      { N: 60, R: 25,  SR: 11,  UR: 3.5, SECRET: 0.5 },
-      rarityBias: { N: 0,  R: 1,   SR: 2.5, UR: 5,   SECRET: 8   },
+      // GOD は4体で枠を分け合うので、枠の重みは薄めでも1体あたりはさらに薄くなる。
+      // そのぶん rarityBias を高くして、ほじり力の強化がはっきり効くようにする
+      // （＝「揃えたいなら鼻ほじり力を上げろ」という導線になる）。
+      baseW:      { N: 60, R: 25,  SR: 11,  UR: 3.5, GOD: 0.8, SECRET: 0.5 },
+      rarityBias: { N: 0,  R: 1,   SR: 2.5, UR: 5,   GOD: 7,   SECRET: 8   },
       sizeBias:   { 小: 0, 中: 0.5, 大: 1.5, 特大: 3, 伝説: 5    },
     
       // ── 飛ばし ───────────────────────────────
@@ -477,8 +482,8 @@ html, body {
       // ── コイン ───────────────────────────────
       // ほじり収入は伸びない。飛ばし収入は強化とともに伸びる。
       // 序盤はほじりが生活費を稼ぎ、強化が進むと飛ばしが主収入になる。
-      coinPick:  { N: 2,  R: 6,  SR: 20,  UR: 70,  SECRET: 200  },
-      coinFirst: { N: 30, R: 80, SR: 250, UR: 800, SECRET: 2000 },
+      coinPick:  { N: 2,  R: 6,  SR: 20,  UR: 70,  GOD: 150,  SECRET: 200  },
+      coinFirst: { N: 30, R: 80, SR: 250, UR: 800, GOD: 1500, SECRET: 2000 },
       // ゴールも競争相手も無いゲームなので、渋くする理由がない。
       // 面白いのはほじりと飛ばしであって、貯金ではない。
       coinPerM:  2.5,
@@ -606,7 +611,7 @@ html, body {
       { id:'r07', name:'おおもの鼻くそ',   size:'特大', rarity:'R', seed:170887, color:'#a98632', w:0.7,
         desc:'本日の大物。鼻の穴が一回り広がった。代償は小さくない。' },
     
-      // ── SR (5) ──────────────────────────────────────────
+      // ── SR (10) ─────────────────────────────────────────
       { id:'s01', name:'こはく鼻くそ',     size:'大',  rarity:'SR', seed:210493, color:'#e8912a', w:1.1,
         desc:'透き通っている。中に太古の花粉が閉じ込められている。学術的価値、あり。' },
       { id:'s02', name:'ダイヤ鼻くそ',     size:'中',  rarity:'SR', seed:220717, color:'#7fd8e8', w:1.0, spike:0.5,
@@ -617,14 +622,44 @@ html, body {
         desc:'握ると雨が降る。天気予報より当たると評判。気象庁が黙っていない。' },
       { id:'s05', name:'キノコ鼻くそ',     size:'大',  rarity:'SR', seed:250337, color:'#d86a8a', w:0.9, spike:0.4,
         desc:'生えていた。断じて育てていた覚えはない。食用かどうかは不明。' },
+      { id:'s06', name:'オーロラ鼻くそ',   size:'中',  rarity:'SR', seed:260713, color:'#4de0b0', w:0.9,
+        desc:'見る角度で色が変わる。極夜の空をそのまま閉じ込めたらしい。鼻の中は極寒だったのか。' },
+      { id:'s07', name:'ハチミツ鼻くそ',   size:'大',  rarity:'SR', seed:270259, color:'#f0a81c', w:1.0,
+        desc:'甘い匂いがする。指から糸を引く。舐めるな。絶対に舐めるな。' },
+      { id:'s08', name:'ばくだん鼻くそ',   size:'特大', rarity:'SR', seed:280631, color:'#3a3f4a', w:0.8, spike:0.3,
+        desc:'導火線が付いている。誰が火をつけた。飛ばすなら早めに飛ばしたほうがいい。' },
+      { id:'s09', name:'メカ鼻くそ',       size:'大',  rarity:'SR', seed:290187, color:'#8e9aa8', w:0.9, spike:0.55,
+        desc:'関節が可動する。自律行動の痕跡あり。あなたの鼻で何が製造されていたのか。' },
+      { id:'s10', name:'こけむし鼻くそ',   size:'特大', rarity:'SR', seed:300941, color:'#6a9440', w:0.8,
+        desc:'苔むしている。数百年は放置されていた計算になる。あなたは何歳だ。' },
     
-      // ── UR (3) ──────────────────────────────────────────
+      // ── UR (7) ──────────────────────────────────────────
       { id:'u01', name:'おうごん鼻くそ',   size:'特大', rarity:'UR', seed:310661, color:'#ffc819', w:1.2,
         desc:'黄金。売れば一生遊んで暮らせる。ただし、鼻くそである。' },
       { id:'u02', name:'ぎんが鼻くそ',     size:'伝説', rarity:'UR', seed:320139, color:'#7a5ce0', w:0.9,
         desc:'内部に恒星系を確認。……これ、ほじってよかったのか？' },
       { id:'u03', name:'ごほんぞん鼻くそ', size:'伝説', rarity:'UR', seed:330827, color:'#ffe89a', w:0.9,
         desc:'拝むと御利益があるらしい。鼻から出てきたものを拝むのか、あなたは。' },
+      { id:'u04', name:'ブラックホール鼻くそ', size:'伝説', rarity:'UR', seed:340193, color:'#1a1424', w:0.8,
+        desc:'光を吸う。近づけた指の先が微妙に短い気がする。気のせいだと思いたい。' },
+      { id:'u05', name:'げんしろ鼻くそ',   size:'特大', rarity:'UR', seed:350471, color:'#7ff03a', w:0.9, spike:0.35,
+        desc:'自ら発光し、発熱している。臨界に達する前に飛ばすことを強く推奨する。' },
+      { id:'u06', name:'マグマ鼻くそ',     size:'伝説', rarity:'UR', seed:360929, color:'#ff5a1e', w:0.85,
+        desc:'地殻の底から来た。鼻とマントルが繋がっているという説の、動かぬ証拠。' },
+      { id:'u07', name:'こだいのカケラ',   size:'特大', rarity:'UR', seed:370317, color:'#c8b088', w:0.95, spike:0.3,
+        desc:'碑文が刻まれている。解読したところ「かえせ」と書いてあった。' },
+    
+      // ── GOD (4) ── 四神。UR の上。揃えたくなる「セット」 ────
+      // 全部 伝説 サイズで統一してある。飛ばすには最大級のパワーが要るので、
+      // 「引く」だけでなく「飛ばせるようにする」まで含めて終盤の目標になる。
+      { id:'g01', name:'青龍鼻くそ',       size:'伝説', rarity:'GOD', seed:410233, color:'#22b6c8', w:1, stretch:0.8,
+        desc:'東を守護する蒼き龍。長い。まだ出る。まだ出る。鼻腔の東側に棲んでいたらしい。' },
+      { id:'g02', name:'朱雀鼻くそ',       size:'伝説', rarity:'GOD', seed:420617, color:'#f2452a', w:1, spike:0.7,
+        desc:'南を守護する朱き霊鳥。指先で燃えている。熱いが、離すと逃げるので我慢しろ。' },
+      { id:'g03', name:'白虎鼻くそ',       size:'伝説', rarity:'GOD', seed:430859, color:'#eaf0f4', w:1, spike:0.45,
+        desc:'西を守護する白き虎。取り出す際に指を引っ掻かれた。鼻の中で飼っていた覚えはない。' },
+      { id:'g04', name:'玄武鼻くそ',       size:'伝説', rarity:'GOD', seed:440371, color:'#2e3352', w:1,
+        desc:'北を守護する黒き亀。硬い。びくともしない。数千年ぶりに首を出したのがあなたの鼻とは。' },
     
       // ── SECRET (2) ── 図鑑に存在自体を出さない ─────────────
       { id:'x01', name:'はなくそ大王',     size:'伝説', rarity:'SECRET', seed:410593, color:'#b03cd0', w:1, secret:true, spike:0.35,
@@ -640,11 +675,16 @@ html, body {
     const SECRETS = BOOGERS.filter(b => b.secret);
     
     const RARITY_COLOR = {
-      N: '#9a8f86', R: '#5ec8e8', SR: '#c47ae8', UR: '#ffc819', SECRET: '#ff5ea8',
+      N: '#9a8f86', R: '#5ec8e8', SR: '#c47ae8', UR: '#ffc819', GOD: '#ff7a1e', SECRET: '#ff5ea8',
     };
-    const RARITY_STARS = { N: 1, R: 2, SR: 3, UR: 4, SECRET: 5 };
+    const RARITY_STARS = { N: 1, R: 2, SR: 3, UR: 4, GOD: 5, SECRET: 5 };
+    /** 図鑑やリビールで「UR」ではなく漢字で見せる */
+    const RARITY_LABEL = { N: 'N', R: 'R', SR: 'SR', UR: 'UR', GOD: '神', SECRET: 'SECRET' };
     
-    return { BOOGERS, BY_ID, NORMAL, RARITY_COLOR, RARITY_STARS, SECRETS };
+    /** 四神。セットとして進捗を出すために切り出す */
+    const GODS = BOOGERS.filter(b => b.rarity === 'GOD');
+    
+    return { BOOGERS, BY_ID, GODS, NORMAL, RARITY_COLOR, RARITY_LABEL, RARITY_STARS, SECRETS };
   });
 
   // ---------- src/core/shape.js ----------
@@ -1474,7 +1514,7 @@ html, body {
     var { shake, hitstop, flash, popup, burst, irisOut, irisIn, irisOff, drawRays, drawStar, } = __req('juice');
     var { sfxPon, sfxWhiff, grindStart, grindSet, grindStop, sfxFanfare, sfxStar, sfxCoin, } = __req('audio');
     var { roll, gain, milestone, digNeed, upRate, S } = __req('state');
-    var { RARITY_COLOR, RARITY_STARS } = __req('boogers');
+    var { RARITY_COLOR, RARITY_STARS, RARITY_LABEL } = __req('boogers');
     
     const N = CFG.nose;
     const SKIN = '#e8a882', SKIN_D = '#c2795a', SKIN_L = '#f6c9a8';
@@ -1483,6 +1523,12 @@ html, body {
     // 消し切る手前で止めてあるのは、輪郭がうっすら残ったほうが
     // 「奥に入っている」ように見えて、ただの切り抜きに見えないため。
     const HOLE_DARK = 0.94;
+    
+    // 初登場の後光の色。四神とシークレットだけ、ふつうの金色から変えて格を上げる
+    const RAY_COLOR = {
+      GOD:    'rgba(255,150,40,',
+      SECRET: 'rgba(255,120,220,',
+    };
     
     const pickScene = {
       name: 'pick',
@@ -1973,8 +2019,7 @@ html, body {
       if (state === 'reveal' && isNew && t > .3) {
         ctx.save();
         ctx.globalAlpha = clamp((t - .3) / .4, 0, 1) * clamp((revealDur() - t) / .5, 0, 1);
-        drawRays(ctx, W / 2, 560, anim, 760,
-          entry.rarity === 'SECRET' ? 'rgba(255,120,220,' : 'rgba(255,220,120,');
+        drawRays(ctx, W / 2, 560, anim, 760, RAY_COLOR[entry.rarity] || 'rgba(255,220,120,');
         ctx.restore();
       }
     
@@ -1984,13 +2029,17 @@ html, body {
         drawBooger(ctx, entry, bx, by, r, bRot);
     
         if (isNew) {
-          // 星（レア度ぶん）
+          // 星（レア度ぶん）。
+          // 星の数が増えても弧の全長が変わらないよう、間隔を星数で割る。
+          // 固定間隔だと5個で扇が広がりすぎて、端の星がアイリスの穴からはみ出す。
           for (let i = 0; i < starShown; i++) {
-            const a = -Math.PI / 2 + (i - (starN - 1) / 2) * .38;
-            const rr = 255;
+            const spread = Math.min(1.5, starN * .34);              // 弧の全角（rad）
+            const step = starN > 1 ? spread / (starN - 1) : 0;
+            const a = -Math.PI / 2 + (i - (starN - 1) / 2) * step;
+            const rr = 250;
             const k = clamp((t - .95 - i * .16) / .3, 0, 1);
             drawStar(ctx, W / 2 + Math.cos(a) * rr, 560 + Math.sin(a) * rr * .8,
-              30 * easeOutBack(k), RARITY_COLOR[entry.rarity], anim * .8 + i);
+              28 * easeOutBack(k), RARITY_COLOR[entry.rarity], anim * .8 + i);
           }
           // テキストは全部アイリスの穴（中心560 / 半径330）の内側に収める。
           // 後光の上に乗るので、縁取りが無いと沈む
@@ -2002,7 +2051,10 @@ html, body {
     
             ctx.font = '900 30px system-ui, sans-serif';
             ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(0,0,0,.9)';
-            const head = entry.rarity === 'SECRET' ? 'シークレット！' : `${entry.rarity}　はじめて！`;
+            const head =
+              entry.rarity === 'SECRET' ? 'シークレット！' :
+              entry.rarity === 'GOD'    ? '四神　降臨！' :
+              `${RARITY_LABEL[entry.rarity]}　はじめて！`;
             ctx.strokeText(head, W / 2, 268);
             ctx.fillStyle = RARITY_COLOR[entry.rarity];
             ctx.fillText(head, W / 2, 268);
@@ -2083,7 +2135,7 @@ html, body {
     var { shake, hitstop, flash, popup, burst } = __req('juice');
     var { chargeStart, chargeSet, chargeStop, sfxLaunch, sfxSplat, sfxCoin, sfxFanfare, sfxThud, } = __req('audio');
     var { S, stockOf, consume, addCoins, launchV, distanceOf, powerRatio, updateRecord, milestone, } = __req('state');
-    var { BOOGERS, RARITY_COLOR } = __req('boogers');
+    var { BOOGERS, RARITY_COLOR, RARITY_LABEL } = __req('boogers');
     
     const flyScene = { name: 'fly', locked: false, cv: null, ctx: null };
     
@@ -2849,7 +2901,7 @@ html, body {
         ctx.textAlign = 'left';
         ctx.font = '900 15px system-ui, sans-serif';
         ctx.fillStyle = RARITY_COLOR[b.rarity];
-        ctx.fillText(b.rarity, x + 7, y + 20);
+        ctx.fillText(RARITY_LABEL[b.rarity], x + 7, y + 20);
     
         // パワーが足りているか。足りないと本気が出ない
         const pr = powerRatio(b.size);
@@ -3065,7 +3117,7 @@ html, body {
     // シークレットは存在自体を出さない。獲得すると末尾に枠が増える。
     // カウントは通常枠だけで数え、シークレットは別枠 ── 総数でネタバレしないため。
     
-    var { BOOGERS, NORMAL, SECRETS, RARITY_COLOR } = __req('boogers');
+    var { BOOGERS, NORMAL, SECRETS, GODS, RARITY_COLOR, RARITY_LABEL } = __req('boogers');
     var { drawBooger, drawSilhouette } = __req('shape');
     var { S, hasSeen, stockOf, seenNormal, seenSecrets } = __req('state');
     var { sfxThud } = __req('audio');
@@ -3109,7 +3161,7 @@ html, body {
           const r = document.createElement('div');
           r.className = 'col-rar';
           r.style.color = RARITY_COLOR[b.rarity];
-          r.textContent = b.rarity;
+          r.textContent = RARITY_LABEL[b.rarity];
           cell.appendChild(r);
     
           const st = document.createElement('div');
@@ -3125,9 +3177,17 @@ html, body {
       }
     
       document.querySelector('#col-count').textContent = `${seenNormal()} / ${NORMAL.length}`;
+    
+      // 四神は「あと何体」が見えていないとセットとして機能しない。
+      // 揃ったら祝う。ここがこの図鑑で唯一のゴールらしいゴールになる。
+      const gn = GODS.filter(b => hasSeen(b.id)).length;
       const sc = seenSecrets();
-      document.querySelector('#col-secret').textContent =
-        sc > 0 ? `＋シークレット ${sc}` : '';
+      const bits = [];
+      bits.push(gn >= GODS.length ? `四神 ${gn}/${GODS.length} 制覇！` : `四神 ${gn}/${GODS.length}`);
+      if (sc > 0) bits.push(`シークレット ${sc}`);
+      const el = document.querySelector('#col-secret');
+      el.textContent = bits.join('　');
+      el.style.color = gn >= GODS.length ? '#ff7a1e' : '';
     }
     
     function openDetail(b, got) {
@@ -3151,7 +3211,7 @@ html, body {
       const meta = document.createElement('div');
       meta.className = 'd-meta';
       if (got) {
-        meta.innerHTML = `<span style="color:${RARITY_COLOR[b.rarity]}">${b.rarity}</span>　大きさ ${b.size}`;
+        meta.innerHTML = `<span style="color:${RARITY_COLOR[b.rarity]}">${RARITY_LABEL[b.rarity]}</span>　大きさ ${b.size}`;
       } else {
         meta.textContent = 'まだ ほじり出していない';
       }

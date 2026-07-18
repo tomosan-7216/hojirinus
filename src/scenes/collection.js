@@ -5,7 +5,7 @@
 // シークレットは存在自体を出さない。獲得すると末尾に枠が増える。
 // カウントは通常枠だけで数え、シークレットは別枠 ── 総数でネタバレしないため。
 
-import { BOOGERS, NORMAL, SECRETS, RARITY_COLOR } from '../data/boogers.js';
+import { BOOGERS, NORMAL, SECRETS, GODS, RARITY_COLOR, RARITY_LABEL } from '../data/boogers.js';
 import { drawBooger, drawSilhouette } from '../core/shape.js';
 import { S, hasSeen, stockOf, seenNormal, seenSecrets } from '../state.js';
 import { sfxThud } from '../core/audio.js';
@@ -49,7 +49,7 @@ function build() {
       const r = document.createElement('div');
       r.className = 'col-rar';
       r.style.color = RARITY_COLOR[b.rarity];
-      r.textContent = b.rarity;
+      r.textContent = RARITY_LABEL[b.rarity];
       cell.appendChild(r);
 
       const st = document.createElement('div');
@@ -65,9 +65,17 @@ function build() {
   }
 
   document.querySelector('#col-count').textContent = `${seenNormal()} / ${NORMAL.length}`;
+
+  // 四神は「あと何体」が見えていないとセットとして機能しない。
+  // 揃ったら祝う。ここがこの図鑑で唯一のゴールらしいゴールになる。
+  const gn = GODS.filter(b => hasSeen(b.id)).length;
   const sc = seenSecrets();
-  document.querySelector('#col-secret').textContent =
-    sc > 0 ? `＋シークレット ${sc}` : '';
+  const bits = [];
+  bits.push(gn >= GODS.length ? `四神 ${gn}/${GODS.length} 制覇！` : `四神 ${gn}/${GODS.length}`);
+  if (sc > 0) bits.push(`シークレット ${sc}`);
+  const el = document.querySelector('#col-secret');
+  el.textContent = bits.join('　');
+  el.style.color = gn >= GODS.length ? '#ff7a1e' : '';
 }
 
 function openDetail(b, got) {
@@ -91,7 +99,7 @@ function openDetail(b, got) {
   const meta = document.createElement('div');
   meta.className = 'd-meta';
   if (got) {
-    meta.innerHTML = `<span style="color:${RARITY_COLOR[b.rarity]}">${b.rarity}</span>　大きさ ${b.size}`;
+    meta.innerHTML = `<span style="color:${RARITY_COLOR[b.rarity]}">${RARITY_LABEL[b.rarity]}</span>　大きさ ${b.size}`;
   } else {
     meta.textContent = 'まだ ほじり出していない';
   }

@@ -21,7 +21,7 @@ import {
   sfxFanfare, sfxStar, sfxCoin,
 } from '../core/audio.js';
 import { roll, gain, milestone, digNeed, upRate, S } from '../state.js';
-import { RARITY_COLOR, RARITY_STARS } from '../data/boogers.js';
+import { RARITY_COLOR, RARITY_STARS, RARITY_LABEL } from '../data/boogers.js';
 
 const N = CFG.nose;
 const SKIN = '#e8a882', SKIN_D = '#c2795a', SKIN_L = '#f6c9a8';
@@ -30,6 +30,12 @@ const SKIN = '#e8a882', SKIN_D = '#c2795a', SKIN_L = '#f6c9a8';
 // 消し切る手前で止めてあるのは、輪郭がうっすら残ったほうが
 // 「奥に入っている」ように見えて、ただの切り抜きに見えないため。
 const HOLE_DARK = 0.94;
+
+// 初登場の後光の色。四神とシークレットだけ、ふつうの金色から変えて格を上げる
+const RAY_COLOR = {
+  GOD:    'rgba(255,150,40,',
+  SECRET: 'rgba(255,120,220,',
+};
 
 export const pickScene = {
   name: 'pick',
@@ -520,8 +526,7 @@ pickScene.render = function () {
   if (state === 'reveal' && isNew && t > .3) {
     ctx.save();
     ctx.globalAlpha = clamp((t - .3) / .4, 0, 1) * clamp((revealDur() - t) / .5, 0, 1);
-    drawRays(ctx, W / 2, 560, anim, 760,
-      entry.rarity === 'SECRET' ? 'rgba(255,120,220,' : 'rgba(255,220,120,');
+    drawRays(ctx, W / 2, 560, anim, 760, RAY_COLOR[entry.rarity] || 'rgba(255,220,120,');
     ctx.restore();
   }
 
@@ -531,13 +536,17 @@ pickScene.render = function () {
     drawBooger(ctx, entry, bx, by, r, bRot);
 
     if (isNew) {
-      // 星（レア度ぶん）
+      // 星（レア度ぶん）。
+      // 星の数が増えても弧の全長が変わらないよう、間隔を星数で割る。
+      // 固定間隔だと5個で扇が広がりすぎて、端の星がアイリスの穴からはみ出す。
       for (let i = 0; i < starShown; i++) {
-        const a = -Math.PI / 2 + (i - (starN - 1) / 2) * .38;
-        const rr = 255;
+        const spread = Math.min(1.5, starN * .34);              // 弧の全角（rad）
+        const step = starN > 1 ? spread / (starN - 1) : 0;
+        const a = -Math.PI / 2 + (i - (starN - 1) / 2) * step;
+        const rr = 250;
         const k = clamp((t - .95 - i * .16) / .3, 0, 1);
         drawStar(ctx, W / 2 + Math.cos(a) * rr, 560 + Math.sin(a) * rr * .8,
-          30 * easeOutBack(k), RARITY_COLOR[entry.rarity], anim * .8 + i);
+          28 * easeOutBack(k), RARITY_COLOR[entry.rarity], anim * .8 + i);
       }
       // テキストは全部アイリスの穴（中心560 / 半径330）の内側に収める。
       // 後光の上に乗るので、縁取りが無いと沈む
@@ -549,7 +558,10 @@ pickScene.render = function () {
 
         ctx.font = '900 30px system-ui, sans-serif';
         ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(0,0,0,.9)';
-        const head = entry.rarity === 'SECRET' ? 'シークレット！' : `${entry.rarity}　はじめて！`;
+        const head =
+          entry.rarity === 'SECRET' ? 'シークレット！' :
+          entry.rarity === 'GOD'    ? '四神　降臨！' :
+          `${RARITY_LABEL[entry.rarity]}　はじめて！`;
         ctx.strokeText(head, W / 2, 268);
         ctx.fillStyle = RARITY_COLOR[entry.rarity];
         ctx.fillText(head, W / 2, 268);
